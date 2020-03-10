@@ -8,11 +8,12 @@ import matplotlib.pyplot as plt
 import matplotlib.animation as animation
 import glob, sys
 import functools, operator
+from itertools import zip_longest
 
 all_energies = []
 
 def read_a_file(fname):
-    f = open('eparticle.100.0', 'rb')
+    f = open(fname, 'rb')
     energies = []
 
     while True:
@@ -32,7 +33,8 @@ def read_zipped(glob_pattern):
         temp_energies.append(energies)
 
     global all_energies
-    all_energies = functools.reduce(operator.iconcat, zip(*temp_energies), [])
+    all_energies = functools.reduce(operator.iconcat, zip_longest(*temp_energies), [])
+    all_energies = list(filter(lambda x: x, all_energies))
     print(len(all_energies))
     return
 
@@ -58,6 +60,9 @@ ax1 = fig.add_subplot(1, 1, 1)
 prev_jump = 0.01
 prev_sum = 0
 chart_title, gif_fname = parse_glob(glob_pattern)
+
+max_known = 0
+num_oob = 0
 
 def approx_equal(a, b):
     delta = 1e-4
@@ -104,3 +109,8 @@ def animate(i):
 ani = animation.FuncAnimation(fig, animate, interval=30, frames=37)
 #plt.show()
 ani.save(gif_fname, writer='imagemagick', fps=3)
+
+#  for i in range(37):
+    #  animate(i)
+
+#  print("OOB: ", num_oob)
