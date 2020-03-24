@@ -53,7 +53,12 @@ class VPICReader:
 
     def get_num_ranks(self) -> int:
         num_ranks = len(list(self.timesteps[0].glob('e*')))
+        return 2
         return num_ranks
+
+    def get_ts(self, ts_idx: int) -> int:
+        ts_int = re.findall('\d+', self.timesteps[ts_idx].name)
+        return ts_int
 
     def read_a_rank(self, timestep: int, rank: int, ftype: str = 'eparticle') -> List[str]:
         ts_str = re.findall('\d+', self.timesteps[timestep].name)[0]
