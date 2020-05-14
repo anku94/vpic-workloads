@@ -11,25 +11,30 @@ from typing import List
 
 EPSILON = 1e-4
 
+
 def approx_altb(a, b):
     if a < b - EPSILON:
         return True
     return False
+
 
 def approx_alteqb(a, b):
     if a < b + EPSILON:
         return True
     return False
 
+
 def approx_aeqb(a, b):
     if fabs(a - b) < EPSILON:
         return True
     return False
 
+
 def approx_agtb(a, b):
     if a > b + EPSILON:
         return True
     return False
+
 
 def approx_agteqb(a, b):
     if a > b - EPSILON:
@@ -43,26 +48,28 @@ class VPICReader:
 
     def __init__(self, path: str) -> None:
         self.data_root = Path(path)
-        self.timesteps = self._find_all_ts()
+        self.timesteps = sorted(self._find_all_ts(),
+                                key=lambda x: int(x.name[2:]))
         return
 
     def _find_all_ts(self):
         candidates = list(self.data_root.glob('T*'))
-        timesteps = list(filter(lambda x: re.match('T\.\d+', x.name) and x.is_dir(), candidates))
+        timesteps = list(filter(lambda x: re.match(
+            'T\.\d+', x.name) and x.is_dir(), candidates))
         return timesteps
 
     def get_num_ranks(self) -> int:
         num_ranks = len(list(self.timesteps[0].glob('e*')))
-        return 2
         return num_ranks
 
     def get_ts(self, ts_idx: int) -> int:
-        ts_int = re.findall('\d+', self.timesteps[ts_idx].name)
+        ts_int = re.findall('\d+', self.timesteps[ts_idx].name)[0]
         return ts_int
 
     def read_a_rank(self, timestep: int, rank: int, ftype: str = 'eparticle') -> List[str]:
         ts_str = re.findall('\d+', self.timesteps[timestep].name)[0]
-        rank_fname = self.timesteps[timestep] / ("%s.%s.%s" % (ftype, ts_str, rank))
+        rank_fname = self.timesteps[timestep] / \
+            ("%s.%s.%s" % (ftype, ts_str, rank))
         print(rank_fname)
 
         values = []
@@ -87,16 +94,18 @@ class VPICReader:
             all_data.append(self.read_a_rank(timestep, rank, ftype))
 
         print(list(zip_longest(*all_data))[0])
-        all_data = functools.reduce(operator.iconcat, zip_longest(*all_data), [])
+        all_data = functools.reduce(
+            operator.iconcat, zip_longest(*all_data), [])
         print(all_data[0])
 
-        return all_data
+        return list(filter(lambda x: x != None, all_data))
+
 
 class Histogram:
     hist = None
     bin_edges = None
 
-    def __init__(self, data : List[float], bins) -> None:
+    def __init__(self, data: List[float], bins) -> None:
         if type(bins) == type([]):
             self.hist, self.bin_edges = data, bins
         else:
@@ -168,6 +177,7 @@ class Histogram:
 
         return new_hist, mass_per_bin
 
+
 def load_bins(rank_bins):
     num_ranks = len(rank_bins)
     bins_per_rank = len(rank_bins[0])
@@ -179,13 +189,15 @@ def load_bins(rank_bins):
             bin_start = rank_bins[rank][bidx]
             bin_end = rank_bins[rank][bidx + 1]
 
-            if (bin_start == bin_end): continue
+            if (bin_start == bin_end):
+                continue
 
             rbvec.append((rank, bin_start, bin_end, True))
             rbvec.append((rank, bin_end, bin_start, False))
 
-    rbvec = sorted(rbvec, key = lambda x: (x[1], x[3]))
+    rbvec = sorted(rbvec, key=lambda x: (x[1], x[3]))
     return rbvec
+
 
 def pivot_union(rb_items, rank_bin_widths, num_ranks):
     assert(len(rb_items) > 2)
@@ -223,7 +235,8 @@ def pivot_union(rb_items, rank_bin_widths, num_ranks):
 
                 rank_total_range = rank_bin_end[rank] - rank_bin_start[rank]
                 rank_left_range = cur_bin - prev_bp_bin_val
-                rank_contrib = rank_bin_widths[rank] * rank_left_range * 1.0 / rank_total_range
+                rank_contrib = rank_bin_widths[rank] * \
+                    rank_left_range * 1.0 / rank_total_range
 
                 cur_bin_count += rank_contrib
 
@@ -260,5 +273,3 @@ def pivot_union(rb_items, rank_bin_widths, num_ranks):
                 assert(old_len == new_len + 1)
 
     return Histogram(unified_bin_counts, unified_bins)
-
-
