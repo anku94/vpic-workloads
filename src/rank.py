@@ -1,68 +1,77 @@
 from util import VPICReader
-from typing import List
+from typing import List, Tuple
 import bisect
 
 
 class Rank:
-    rankId = None
-    vpicReader = None
+    rank_id = None
+    vpic_reader = None
 
     pivots = None
-    pivotCounts = None
-    oobLeft = []
-    oobRight = []
+    pivot_counts = None
+    oob_left = None
+    oob_right = None
 
     def __init__(self, vpic_reader: VPICReader, rank_id: int) -> None:
-        self.rankId = rank_id
-        self.vpicReader = vpic_reader
+        self.rank_id = rank_id
+        self.vpic_reader = vpic_reader
+        self.oob_left = []
+        self.oob_right = []
         return
 
     def get_id(self) -> int:
-        return self.rankId
+        return self.rank_id
 
     def read(self, timestep: int) -> None:
-        data = self.vpicReader.read_a_rank(timestep, self.rankId)
-        print(len(data))
-        print(data[:10])
+        data = self.vpic_reader.read_a_rank(timestep, self.rank_id)
         return
 
-    def insert(self, data: List[float]) -> None:
+    def produce(self, data: List[float]) -> None:
         for elem in data:
             if self.pivots is None or elem < self.pivots[0]:
-                self.oobLeft.append(elem)
+                self.oob_left.append(elem)
             elif elem >= self.pivots[-1]:
-                self.oobRight.append(elem)
+                self.oob_right.append(elem)
             else:
                 assert(self.pivots is not None)
-                assert(self.pivotCounts is not None)
+                assert(self.pivot_counts is not None)
                 bidx = bisect.bisect_left(self.pivots, elem) - 1
-                self.pivotCounts[bidx] += 1
+                self.pivot_counts[bidx] += 1
+
+    def get_total_produced(self) -> float:
+        oob_left_sz = len(self.oob_left)
+        shuffled_sz = sum(self.pivot_counts) if self.pivot_counts else 0
+        oob_right_sz = len(self.oob_right)
+
+        return oob_left_sz + shuffled_sz + oob_right_sz
 
     def update_pivots(self, new_pivots: List[float]) -> None:
         self.pivots = new_pivots
         # XXX: Not exactly - TODO: repartition old counts
-        self.pivotCounts = [0] * (len(new_pivots) - 1)
+        self.pivot_counts = [0] * (len(new_pivots) - 1)
 
     def flush_oobs(self) -> None:
-        oobl = self.oobLeft
-        self.oobLeft = []
-        oobr = self.oobRight
-        self.oobRight = []
+        oobl = self.oob_left
+        self.oob_left = []
+        oobr = self.oob_right
+        self.oob_right = []
         self.insert(oobl)
         self.insert(oobr)
 
-    def compute_pivots(self, num_pivots: int) -> list:
-        assert(self.pivots is not None)
+    def compute_pivots(self, num_pivots: int) -> Tuple[List[float], float]:
         assert(num_pivots > 2)
 
-        new_pivots = [None] * num_pivots
+        self.oob_left.sort()
+        self.oob_right.sort()
 
-        oobl_sz = len(self.oobLeft)
+        new_pivots = [0.0] * num_pivots
+
+        oobl = self.oob_left
+        oobr = self.oob_right
+
+        oobl_sz = len(oobl)
         pvt_sz = 0 if self.pivots is None else sum(self.pivots)
-        oobr_sz = len(self.oobRight)
-
-        oobl = self.oobLeft
-        oobr = self.oobRight
+        oobr_sz = len(oobr)
 
         range_start = 0
         range_end = 0
@@ -92,16 +101,12 @@ class Rank:
         total_mass = oobl_sz + pvt_sz + oobr_sz
         mass_per_pivot = total_mass * 1.0 / (num_pivots - 1)
 
-        print("----------")
-
-        print("mass: ", total_mass, mass_per_pivot)
-
         cur_pivot = 1
         if mass_per_pivot < 1e-3:
             raise Exception("Probably fill pivots with zero?")
 
         pvt_ss = self.pivots
-        pvcnt_ss = self.pivotCounts
+        pvcnt_ss = self.pivot_counts
         accumulated_ppp = 0.0
         particles_carried_over = 0.0
 
@@ -175,7 +180,7 @@ class Rank:
 
         pivot_width = mass_per_pivot
 
-        return new_pivots
+        return (new_pivots, pivot_width)
 
     @staticmethod
     def repartition_bin_counts(pivots_old: List[float],
@@ -252,18 +257,4 @@ class Rank:
 
         assert(abs(osum_temp - nsum_temp) < 1e-3)
 
-
-
-        return
-
-
-class Renegotiation:
-    vpicReader = None
-    numRanks = None
-
-    def __init__(self, numRanks, vpicReader: VPICReader) -> None:
-        self.vpicReader = vpicReader
-        self.numRanks = numRanks
-
-    def read_a_particle(self) -> None:
         return

@@ -1,6 +1,6 @@
 import unittest
 from util import VPICReader
-from reneg import Rank
+from rank import Rank
 
 
 class TestVPICReader(unittest.TestCase):
@@ -15,37 +15,45 @@ class TestVPICReader(unittest.TestCase):
 
 class TestRank(unittest.TestCase):
     def setUp(self):
-        self.vpicReader = VPICReader('.')
-        self.rank = Rank(self.vpicReader, 2)
         return
 
     def test_1_insert_init(self):
+        self.vpicReader = VPICReader('.')
+        self.rank = Rank(self.vpicReader, 2)
+
         self.rank.insert(range(20))
-        self.assertEqual(len(self.rank.oobLeft), 20,
+        self.assertEqual(len(self.rank.oob_left), 20,
                          msg="init insertion not okay")
-        self.assertEqual(len(self.rank.oobRight), 0,
+        self.assertEqual(len(self.rank.oob_right), 0,
                          msg="init insertion not okay")
         self.assertIsNone(self.rank.pivots)
-        self.assertIsNone(self.rank.pivotCounts)
+        self.assertIsNone(self.rank.pivot_counts)
 
     def test_2_rank_pivots(self):
-        pivots = self.rank.compute_pivots(5)
+        vpicReader = VPICReader('.')
+        rank = Rank(vpicReader, 2)
+        rank.insert(range(20))
+        pivots, pivot_width = rank.compute_pivots(5)
+
         self.assertEqual(pivots, [0, 5, 10, 15, 19])
+        self.assertAlmostEqual(pivot_width, 5.0)
+
         return
 
     def test_3_update_pivots(self):
         new_pivots = [3, 7, 11, 13]
         self.rank.update_pivots(new_pivots)
         self.rank.flush_oobs()
-        self.assertEqual(self.rank.pivotCounts, [4, 4, 2])
-        self.assertEqual(len(self.rank.oobLeft), 3)
-        self.assertEqual(len(self.rank.oobRight), 7)
+        self.assertEqual(self.rank.pivot_counts, [4, 4, 2])
+        self.assertEqual(len(self.rank.oob_left), 3)
+        self.assertEqual(len(self.rank.oob_right), 7)
 
     def test_4_get_pivots_again(self):
-        pivots = self.rank.compute_pivots(3)
+        pivots, pivot_width = self.rank.compute_pivots(3)
         self.assertEqual(pivots, [0, 10, 19])
+        self.assertAlmostEqual(pivot_width, 10.0)
 
-        pivots = self.rank.compute_pivots(7)
+        pivots, pivot_width = self.rank.compute_pivots(7)
         self.assertEqual(pivots, [0, 3, 7, 10, 13, 17, 19])
 
     def test_repartition(self):

@@ -102,6 +102,30 @@ def plot_load_view(ax, loads, lines):
     #  mean_load *= 1.15
     #  ax.plot([0, max(lines + 1)], [mean_load, mean_load], color='black')
 
+def plot_simple_hist(reader, ax, ts):
+    all_data = reader.read_global(ts)
+    len_all_data = len(all_data)
+    #len_clipped = int(len_all_data * anim_frames[i] / 100.0)
+    len_clipped = len_all_data
+    data = all_data[:len_clipped]
+
+    print("Data: ", len(data))
+
+    ax.clear()
+    hist, bin_edges = np.histogram(data, bins=512)
+    print(hist)
+
+    hist2 = [i * 1.0 / sum(hist) for i in hist]
+
+    width = bin_edges[1] - bin_edges[0]
+    ax.bar(bin_edges[:-1], hist2, width=width)
+    # ax.set_ylim([0, 0.5])
+    # ax.set_yscale('log')
+    ax.set_title("Progress: %s%%" % ([25, 50, 75, 100][ts]))
+    ax.set_xlabel("Energy (eV)")
+    # ax.set_ylabel("PDF")
+
+    pass
 
 def animate(reader, ax, i):
     global accurate_hist
@@ -242,5 +266,25 @@ def run_reneg():
     #  ani.save(fname, writer='imagemagick', fps=30, dpi=200)
 
 
+def plot_hist_4():
+    v = VPICReader(sys.argv[1])
+    n = v.get_num_ranks()
+    print("Ranks: ", n)
+
+    fig, axes = plt.subplots(2, 2)
+    for row in range(2):
+        for col in range(2):
+            plot_simple_hist(v, axes[row][col], row * 2 + col)
+        #     break
+        # break
+
+    plt.ylim([0, 0.5])
+    plt.tight_layout()
+    # plt.show()
+    plt.savefig("vis/ASCR/vpic_distrib.pdf")
+    return
+
+
 if __name__ == "__main__":
-    run_reneg()
+    #run_reneg()
+    plot_hist_4()
