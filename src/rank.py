@@ -1,20 +1,30 @@
+import sys
+
 from util import VPICReader
 from typing import List, Tuple
 import bisect
 
 
 class Rank:
-    rank_id = None
-    vpic_reader = None
+    """
+    A renegotiating rank
 
-    pivots = None
-    pivot_counts = None
-    oob_left = None
-    oob_right = None
+    Mostly to be operated by Renegotiation
 
-    def __init__(self, vpic_reader: VPICReader, rank_id: int) -> None:
+    :param vpic_reader:
+    :param rank_id:
+    :param pivot_precision:
+    """
+    def __init__(self, vpic_reader: VPICReader, rank_id: int, pivot_precision: int = None) -> None:
         self.rank_id = rank_id
         self.vpic_reader = vpic_reader
+
+        self.pivots = None
+        self.pivot_counts = None
+
+        if pivot_precision:
+            self.pivot_precision = pivot_precision
+
         self.oob_left = []
         self.oob_right = []
         return
@@ -37,6 +47,8 @@ class Rank:
                 assert(self.pivot_counts is not None)
                 bidx = bisect.bisect_left(self.pivots, elem) - 1
                 self.pivot_counts[bidx] += 1
+        pivot_sum = 0 if self.pivot_counts is None else sum(self.pivot_counts)
+        # print('Producing at %s - %s - sum - %s' % (self.rank_id, len(data), pivot_sum))
 
     def get_total_produced(self) -> float:
         oob_left_sz = len(self.oob_left)
@@ -45,18 +57,32 @@ class Rank:
 
         return oob_left_sz + shuffled_sz + oob_right_sz
 
-    def update_pivots(self, new_pivots: List[float]) -> None:
+    # def _update_pivots(self, new_pivots: List[float]) -> None:
+    #     self.pivots = new_pivots
+    #     self.pivot_counts = [0] * (len(new_pivots) - 1)
+    #
+    # def _flush_oobs(self) -> None:
+    #     oobl = self.oob_left
+    #     self.oob_left = []
+    #     oobr = self.oob_right
+    #     self.oob_right = []
+    #     self.produce(oobl)
+    #     self.produce(oobr)
+
+    def update_and_flush(self, new_pivots: List[float]) -> None:
         self.pivots = new_pivots
-        # XXX: Not exactly - TODO: repartition old counts
         self.pivot_counts = [0] * (len(new_pivots) - 1)
 
-    def flush_oobs(self) -> None:
         oobl = self.oob_left
         self.oob_left = []
         oobr = self.oob_right
         self.oob_right = []
-        self.insert(oobl)
-        self.insert(oobr)
+
+        self.produce(oobl)
+        self.produce(oobr)
+
+        # Reset anyway, since we don't use counts from older rounds anymore
+        self.pivot_counts = [0] * (len(new_pivots) - 1)
 
     def compute_pivots(self, num_pivots: int) -> Tuple[List[float], float]:
         assert(num_pivots > 2)
@@ -70,9 +96,11 @@ class Rank:
         oobr = self.oob_right
 
         oobl_sz = len(oobl)
-        pvt_sz = 0 if self.pivots is None else sum(self.pivots)
+        #pvt_sz = 0 if self.pivots is None else sum(self.pivots)
+        pvt_sz = 0 if self.pivots is None else sum(self.pivot_counts)
         oobr_sz = len(oobr)
 
+        # print('OOB: ', oobl_sz, pvt_sz, oobr_sz)
         range_start = 0
         range_end = 0
 
@@ -100,6 +128,9 @@ class Rank:
 
         total_mass = oobl_sz + pvt_sz + oobr_sz
         mass_per_pivot = total_mass * 1.0 / (num_pivots - 1)
+
+        # print("Total mass: ", oobl_sz, pvt_sz, oobr_sz, "MPP: ", mass_per_pivot)
+        # print("Pivot start, end: ", range_start, range_end)
 
         cur_pivot = 1
         if mass_per_pivot < 1e-3:
@@ -130,17 +161,21 @@ class Rank:
 
         if pvt_ss is not None:
             for bidx in range(len(pvt_ss) - 1):
-                cur_bin_left = pvt_ss[bidx]
+                cur_bin_left = pvcnt_ss[bidx]
                 bin_start = pvt_ss[bidx]
-                bin_end = pvt_ss[bidx]
+                bin_end = pvt_ss[bidx + 1]
 
-                while particles_carried_over + cur_bin_left >= mass_per_pivot - 1e05:
+                while particles_carried_over + cur_bin_left >= mass_per_pivot - 1e-05:
+                    # print('Loop condition: A: {0}, B: {1}'.format(particles_carried_over + cur_bin_left,
+                    #       mass_per_pivot - 1e05))
+
                     take_from_bin = mass_per_pivot - particles_carried_over
 
                     # advance bin_start s.t. take_from_bin is removed
                     bin_width = bin_end - bin_start
                     width_to_remove = take_from_bin / cur_bin_left * bin_width
-
+                    # print('TFB: {0}, CBL: {1}, BW: {2}'.format(take_from_bin,
+                    #                                            cur_bin_left, bin_width))
                     bin_start += width_to_remove
                     new_pivots[cur_pivot] = bin_start
 
@@ -156,7 +191,7 @@ class Rank:
         oob_index = 0
 
         while True:
-            part_left = oobr_sz = oob_index
+            part_left = oobr_sz - oob_index
             if (mass_per_pivot < 1e-3 or
                     part_left + particles_carried_over < mass_per_pivot - 1e-3):
                 particles_carried_over += part_left
@@ -180,7 +215,7 @@ class Rank:
 
         pivot_width = mass_per_pivot
 
-        return (new_pivots, pivot_width)
+        return new_pivots, pivot_width
 
     @staticmethod
     def repartition_bin_counts(pivots_old: List[float],

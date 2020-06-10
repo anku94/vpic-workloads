@@ -1,4 +1,6 @@
 import functools
+from collections.abc import Iterable
+
 import numpy as np
 import operator
 import re
@@ -7,7 +9,7 @@ import struct
 from itertools import zip_longest
 from math import fabs
 from pathlib import Path
-from typing import List
+from typing import List, Union
 
 EPSILON = 1e-4
 
@@ -116,12 +118,19 @@ class Histogram:
     bin_edges = None
 
     def __init__(self, data: List[float] = None,
-                 bin_weights: List[float] = None,
+                 bin_weights: Union[float, List[float]] = None,
                  bin_edges: List[float] = None,
                  nbins: int = None
                  ) -> None:
         if bin_weights is not None and bin_edges is not None:
-            self.hist, self.bin_edges = bin_weights, bin_edges
+            if isinstance(bin_weights, Iterable):
+                self.hist, self.bin_edges = bin_weights, bin_edges
+            elif isinstance(bin_weights, float):
+                self.bin_edges = bin_edges
+                self.hist = [bin_weights] * (len(bin_edges) - 1)
+            else:
+                raise Exception('Invalid constructor parameters: %s' %
+                                (type(bin_weights),))
         elif bin_edges is not None:
             self.hist, self.bin_edges = np.histogram(data, bin_edges)
         elif nbins is not None:
@@ -199,8 +208,9 @@ class Histogram:
         return new_hist, mass_per_bin
 
     def __str__(self):
-        return 'Histogram (edges: {0}, weights: {1})'.format(
-            ', '.join(map(lambda x: "%0.2f" % x, self.bin_edges)),
+        return 'Histogram (num_bins: {0}, edges: {1}, weights: {2})'.format(
+            len(self.hist),
+            ', '.join(map(lambda x: "%0.4f" % x, self.bin_edges)),
             ', '.join(map(lambda x: str(x), self.hist))
         )
 
