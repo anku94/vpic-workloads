@@ -1,2 +1,7 @@
 numpy
 matplotlib
+plotly
+pandas
+psutil
+requests
+plotly

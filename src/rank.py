@@ -22,6 +22,11 @@ class Rank:
         self.pivots = None
         self.pivot_counts = None
 
+        self.pivot_sliding_count_cur = None
+        self.pivot_sliding_count_prev = None
+        self.pivot_sliding_counter = 0
+        self.pivot_sliding_thresh = 2000
+
         if pivot_precision:
             self.pivot_precision = pivot_precision
 
@@ -46,9 +51,20 @@ class Rank:
                 assert(self.pivots is not None)
                 assert(self.pivot_counts is not None)
                 bidx = bisect.bisect_left(self.pivots, elem) - 1
-                self.pivot_counts[bidx] += 1
+                self._update_pivot_count(bidx)
+
         pivot_sum = 0 if self.pivot_counts is None else sum(self.pivot_counts)
         # print('Producing at %s - %s - sum - %s' % (self.rank_id, len(data), pivot_sum))
+
+    def _update_pivot_count(self, bidx):
+        self.pivot_counts[bidx] += 1
+        self.pivot_sliding_count_cur[bidx] += 1
+        self.pivot_sliding_counter += 1
+
+        if self.pivot_sliding_counter == self.pivot_sliding_thresh:
+            self.pivot_sliding_counter = 0
+            self.pivot_sliding_count_prev = [val for val in self.pivot_sliding_count_cur]
+            self.pivot_sliding_count_cur = [0] * len(self.pivot_sliding_count_prev)
 
     def get_total_produced(self) -> float:
         oob_left_sz = len(self.oob_left)
@@ -72,6 +88,9 @@ class Rank:
     def update_and_flush(self, new_pivots: List[float]) -> None:
         self.pivots = new_pivots
         self.pivot_counts = [0] * (len(new_pivots) - 1)
+        self.pivot_sliding_count_prev = None
+        self.pivot_sliding_count_cur = [0] * (len(new_pivots) - 1)
+        self.pivot_sliding_counter = 0
 
         oobl = self.oob_left
         self.oob_left = []
@@ -83,6 +102,19 @@ class Rank:
 
         # Reset anyway, since we don't use counts from older rounds anymore
         self.pivot_counts = [0] * (len(new_pivots) - 1)
+        self.pivot_sliding_count_prev = None
+        self.pivot_sliding_count_cur = [0] * (len(new_pivots) - 1)
+        self.pivot_sliding_counter = 0
+
+    def get_pivot_count(self):
+        # pivot_count = self.pivot_counts
+        pivot_count = None
+        if self.pivot_sliding_count_cur:
+            pivot_count = [val for val in self.pivot_sliding_count_cur]
+        if self.pivot_sliding_count_prev:
+            for idx, val in enumerate(self.pivot_sliding_count_prev):
+                pivot_count[idx] += val
+        return pivot_count
 
     def compute_pivots(self, num_pivots: int) -> Tuple[List[float], float]:
         assert(num_pivots > 2)
@@ -96,8 +128,7 @@ class Rank:
         oobr = self.oob_right
 
         oobl_sz = len(oobl)
-        #pvt_sz = 0 if self.pivots is None else sum(self.pivots)
-        pvt_sz = 0 if self.pivots is None else sum(self.pivot_counts)
+        pvt_sz = 0 if self.pivots is None else sum(self.get_pivot_count())
         oobr_sz = len(oobr)
 
         # print('OOB: ', oobl_sz, pvt_sz, oobr_sz)
@@ -137,7 +168,7 @@ class Rank:
             raise Exception("Probably fill pivots with zero?")
 
         pvt_ss = self.pivots
-        pvcnt_ss = self.pivot_counts
+        pvcnt_ss = self.get_pivot_count()
         accumulated_ppp = 0.0
         particles_carried_over = 0.0
 
@@ -177,6 +208,10 @@ class Rank:
                     # print('TFB: {0}, CBL: {1}, BW: {2}'.format(take_from_bin,
                     #                                            cur_bin_left, bin_width))
                     bin_start += width_to_remove
+                    if cur_pivot >= len(new_pivots):
+                        print(new_pivots)
+                        print(cur_pivot)
+                        print(bin_start)
                     new_pivots[cur_pivot] = bin_start
 
                     cur_pivot += 1

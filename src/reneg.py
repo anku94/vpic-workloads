@@ -1,9 +1,12 @@
-from util import VPICReader, RenegUtils, Histogram, ApproxComp
+import sys
+
+from util import VPICReader, RenegUtils, Histogram, ApproxComp, chunk_it
 from rank import Rank
 import itertools, numpy
 from copy import deepcopy
 
 import matplotlib.pyplot as plt
+import numpy as np
 from functools import reduce
 from typing import List
 
@@ -131,8 +134,10 @@ class Renegotiation:
 
         all_masses = []
 
+        mass_tmp = 0
         for rank in self.ranks:
             pivots, pivot_width = rank.compute_pivots(self.num_pivots_sent)
+            mass_tmp += (len(pivots) - 1) * pivot_width
             assert(len(pivots) == self.num_pivots_sent)
 
             all_pivots.append(pivots)
@@ -146,6 +151,7 @@ class Renegotiation:
         mass_init = (self.num_pivots_sent - 1) * sum(all_widths)
         mass_fin = merged_pivots.get_mass()
 
+        print(mass_tmp, mass_init, mass_fin)
         assert(abs(mass_fin - mass_init) < 1e-3)
 
         # print(all_pivots, all_widths)
@@ -155,7 +161,7 @@ class Renegotiation:
 
         mass_reb = merged_pivots.get_mass()
 
-        assert(ApproxComp.approx_aeqb(mass_init, sum(all_masses)))
+        # assert(ApproxComp.approx_aeqb(mass_init, sum(all_masses)))
         assert(ApproxComp.approx_aeqb(mass_init, mass_fin))
         assert(ApproxComp.approx_aeqb(mass_init, mass_reb))
 
@@ -174,17 +180,40 @@ class Renegotiation:
         self.reset_between_reneg()
         return
 
+    def get_skew(self, window=False):
+        all_counts = np.zeros(self.num_ranks, dtype=int)
+
+        for rank in self.ranks:
+            chunk_size = 1
+            if window:
+                rank_pivot_counts = rank.get_pivot_count()
+            else:
+                rank_pivot_counts = rank.pivot_counts
+
+            if len(rank_pivot_counts) != self.num_ranks:
+                # chunk_it also sums
+                cur_counts = chunk_it(rank_pivot_counts, self.num_ranks)
+
+            all_counts += np.array(cur_counts)
+
+        count_avg = sum(all_counts) * 1.0 / len(all_counts)
+        load_rel = all_counts / count_avg
+        load_std = np.var(load_rel) ** 0.5
+
+        print('Imabalance Std: ', load_std)
+        return load_std
+
     def reset_between_reneg(self):
         self.ranks_produced = [[] for ridx in range(self.num_ranks)]
         self.ranks_produced_flattened = []
         return
 
     def get_aggr_pivot_counts(self):
-        aggr_sum = sum([numpy.array(rank.pivot_counts) for rank in self.ranks])
+        aggr_sum = sum([numpy.array(rank.get_pivot_count()) for rank in self.ranks])
         return aggr_sum
 
     def get_pivot_count_sum(self):
-        all_sums = [sum(rank.pivot_counts) for rank in self.ranks]
+        all_sums = [sum(rank.get_pivot_count()) for rank in self.ranks]
         return sum(all_sums)
 
     @staticmethod

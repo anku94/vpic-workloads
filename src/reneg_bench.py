@@ -11,6 +11,13 @@ from matplotlib.ticker import ScalarFormatter
 import pprint
 
 
+def log_tailed(x, cutoff):
+    if x < cutoff:
+        return x
+
+    return cutoff + math.log(1 + (x - cutoff))
+
+
 def compare_balanced_hists(ref_hist: Histogram, our_hist: Histogram, num_pivots):
     sum_ref = sum(ref_hist.hist)
     sum_our = sum(ref_hist.hist)
@@ -248,15 +255,15 @@ def _eval_pivots(data, hist) -> Tuple[float, float, float]:
     norm_hist_std = numpy.var(norm_hist) ** 0.5
     print("HistSize: %s, Var: %0.3f" %(len(nphist), norm_hist_std))
 
-    print(norm_hist)
-    bins = norm_hist
-    width = 0.7 * (bins[1] - bins[0])
-    center = (bins[:-1] + bins[1:]) / 2
-    fig, ax = plt.subplots(1, 1)
-    ax.bar(center, norm_hist, align='center', width=width)
-    ax.set_title('Sample Load Imbalance for Std: %.2f' % (norm_hist_std,))
-    ax.savefig('../vis/renegbench/sampleimbalance.eps', dpi=600)
-    sys.exit(0)
+    # print(norm_hist)
+    # bins = norm_hist
+    # width = 0.7 * (bins[1] - bins[0])
+    # center = (bins[:-1] + bins[1:]) / 2
+    # fig, ax = plt.subplots(1, 1)
+    # ax.bar(center, norm_hist, align='center', width=width)
+    # ax.set_title('Sample Load Imbalance for Std: %.2f' % (norm_hist_std,))
+    # ax.savefig('../vis/renegbench/sampleimbalance.eps', dpi=600)
+    # sys.exit(0)
 
     perfect_hist = Histogram(bin_weights=nphist, bin_edges=bin_edges)
     perfect_hist.rebalance(len(nphist))
@@ -278,7 +285,8 @@ def benchmark_predictive_power(num_ranks: int, timestep: int, data_path: str, ax
     :return:
     """
     ts = timestep
-    vpic_reader = VPICReader(data_path, num_ranks=32)
+    num_ranks=32
+    vpic_reader = VPICReader(data_path, num_ranks=num_ranks)
     reneg = Renegotiation(num_ranks, ts, vpic_reader)
     reneg_pivots = 256
     reneg.set_num_pivots_sent(256)
@@ -330,24 +338,175 @@ def benchmark_predictive_power(num_ranks: int, timestep: int, data_path: str, ax
                  'Renegotiation Frequency: {1:.1f}%'
                  .format(ts, 100.0/num_chunks))
 
+
+def benchmark_predictive_power_adaptive(num_ranks: int, timestep: int,
+                                        data_path: str, ax, num_chunks: int):
+    """
+    Compute how well each x% predicts the next x%
+    :param num_ranks:
+    :param timestep:
+    :param data_paath:
+    :return:
+    """
+    ts = timestep
+    vpic_reader = VPICReader(data_path, num_ranks=32)
+    reneg = Renegotiation(num_ranks, ts, vpic_reader)
+    reneg_pivots = 256
+    reneg.set_num_pivots_sent(256)
+    reneg.set_num_pivots_stored(256)
+    reneg.set_num_bins_final(32)
+    reneg.read_all()
+
+    old_data = None
+    old_pivots = None
+
+    all_min = []
+    all_max = []
+    all_std = []
+    all_skew = []
+
+    reneg_points = []
+
+    reneg_threshold = 0.10
+
+    for chunk_idx in range(num_chunks):
+        print('Iteration %s' % (chunk_idx,))
+        read_per_iter = 1.0 / num_chunks
+        cur_data = reneg.peek_ahead(read_per_iter)
+        reneg.insert(read_per_iter)
+
+        if chunk_idx == 0:
+            new_pivots = reneg.renegotiate()
+            reneg.update_pivots(new_pivots)
+
+            old_pivots = new_pivots
+            old_data = cur_data
+
+            continue
+
+        if old_pivots:
+            min_val, max_val, std_val = \
+                _eval_pivots(cur_data, old_pivots)
+            all_min.append(min_val * 100)
+            all_max.append(max_val * 100)
+            all_std.append(std_val * 100)
+
+            cur_skew = reneg.get_skew(window=True)
+            all_skew.append(cur_skew * 100)
+
+            if cur_skew > reneg_threshold:
+                new_pivots = reneg.renegotiate()
+                reneg.update_pivots(new_pivots)
+
+                reneg_points.append(chunk_idx)
+
+                old_pivots = new_pivots
+                old_data = cur_data
+
+    x_values = [(i + 1) * 1.0 / num_chunks for i in range(num_chunks - 1)]
+
+    ax.plot(x_values, all_min, '-', label='Min')
+    ax.plot(x_values, all_max, '-', label='Max')
+    ax.plot(x_values, all_std, '-', label='Std')
+    ax.plot(x_values, all_skew, '-', label='LBI')
+
+    filter_indices = lambda arr, idx_arr: [arr[idx-1] for idx in idx_arr]
+    x_filtered = filter_indices(x_values, reneg_points)
+    all_min_filtered = filter_indices(all_min, reneg_points)
+    all_max_filtered = filter_indices(all_max, reneg_points)
+    all_std_filtered = filter_indices(all_std, reneg_points)
+    all_skew_filtered = filter_indices(all_skew, reneg_points)
+
+    # ax.plot(x_filtered, all_min_filtered, 'ob')
+    # ax.plot(x_filtered, all_max_filtered, 'og')
+    # ax.plot(x_filtered, all_std_filtered, 'or')
+    ax.plot(x_filtered, all_skew_filtered, 'o', color='orange')
+
+    print(x_values, all_std)
+    print(reneg_points)
+
+    rt100 = reneg_threshold * 100
+
+    ax.set_xlim([0, 1])
+    ax.set_ylim([0, 200])
+    ax.plot([0, 1], [100, 100], '--')
+    ax.plot([0, 1], [rt100, rt100], '--', color='crimson')
+    ax.plot(0, rt100, 'go')
+    plt.annotate("{0}%".format(rt100), xy=(0, rt100),
+                 xytext=(-35, -4), textcoords='offset points', color='crimson')
+    ax.plot([0, 1], [0, 0])
+
+    ax.set_xlabel('Experiment Progress')
+    ax.set_ylabel('Percent')
+    ax.legend(loc='upper right')
+
+    ax.set_title('tsidx: {0}, '
+                 'Dynamic Reneg Freq: {1:.1f}%, ({2} rounds)'
+                 .format(ts, 100.0/num_chunks, len(reneg_points)))
+
+
 def plot_rand_ax(ax):
     x = range(20)
     y = [100 + random.randint(-20, 20) for i in range(20)]
     ax.plot(x, y)
+    num_chunks = 20
+
+    ts = 0
+
+    reneg_points = [2, 5, 6, 7, 9]
+
+    rt100 = 10.0
+
+    ax.plot([0, 1], [100, 100], '--')
+    ax.plot([0, 1], [rt100, rt100], '--', color='crimson')
+    ax.plot(0, rt100, 'go')
+    plt.annotate("{0}%".format(rt100), xy=(0, rt100),
+                 xytext=(-35, -4), textcoords='offset points', color='crimson')
+    ax.plot([0, 1], [0, 0])
+
+    ax.set_xlim([0, 1])
+    ax.set_ylim([0, 200])
+
+    ax.set_xlabel('Experiment Progress')
+    ax.set_ylabel('Percent')
+    ax.legend(loc='upper right')
+
+    ax.set_title('tsidx: {0}, '
+                 'Dynamic Reneg Freq: {1:.1f}%, ({2} rounds)'
+                 .format(ts, 100.0/num_chunks, len(reneg_points)))
     return
 
+
 def benchmark_predictive_power_suite():
-    for num_chunks in [20, 100, 1000]:
+    # for num_chunks in [20, 100, 1000]:
+    for num_chunks in [100]:
         for ts in range(4):
             fig, ax = plt.subplots(1, 1)
             # plot_rand_ax(ax)
-            benchmark_predictive_power(32, ts, '../data', ax, num_chunks)
+            # benchmark_predictive_power(32, ts, '../data', ax, num_chunks)
+            benchmark_predictive_power_adaptive(32, ts, '../data', ax, num_chunks)
             plt.savefig(
-                '../vis/renegbench/renegsim.regular.times%s.ts%s.eps'
+                '../vis/renegbench/renegsim.dynamic.2k.times%s.ts%s.eps'
                 % (num_chunks, ts), dpi=600
             )
-            sys.exit(0)
+            # plt.show()
+            # break
+            # sys.exit(0)
+
+    # for num_chunks in [100]:
+    #     for ts in range(4):
+    #         fig, ax = plt.subplots(1, 1)
+    #         # plot_rand_ax(ax)
+    #         benchmark_predictive_power(32, ts, '../data', ax, num_chunks)
+    #         # plt.savefig(
+    #         #     '../vis/renegbench/renegsim.dynamic.nowindow.times%s.ts%s.eps'
+    #         #     % (num_chunks, ts), dpi=600
+    #         # )
+    #         plt.show()
+    #         sys.exit(0)
     pass
+    pass
+
 
 def _subarray_len(array: List):
     return len(array), [len(l) for l in array]

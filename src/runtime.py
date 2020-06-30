@@ -2,16 +2,7 @@ import glob
 import matplotlib.pyplot as plt
 import numpy
 
-
-def chunk_it(ls, nchunks):
-    chunk_size = int(len(ls) / nchunks)
-    print('chunk size: ', chunk_size)
-    chunks = []
-    for chunk_start in range(0, len(ls), nchunks):
-        ls_chunk = ls[chunk_start:chunk_start + chunk_size]
-        ls_chunk = sum(ls_chunk)
-        chunks.append(ls_chunk)
-    return chunks
+from util import chunk_it
 
 
 class RuntimeLog:

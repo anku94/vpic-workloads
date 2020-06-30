@@ -14,6 +14,17 @@ from typing import List, Union
 EPSILON = 1e-4
 
 
+def chunk_it(ls, nchunks):
+    chunk_size = int(len(ls) / nchunks)
+    # print('chunk size: ', chunk_size)
+    chunks = []
+    for chunk_start in range(0, len(ls), chunk_size):
+        ls_chunk = ls[chunk_start:chunk_start + chunk_size]
+        ls_chunk = sum(ls_chunk)
+        chunks.append(ls_chunk)
+    return chunks
+
+
 class ApproxComp:
     @staticmethod
     def approx_altb(a, b):
@@ -105,10 +116,10 @@ class VPICReader:
             print(rank)
             all_data.append(self.read_a_rank(timestep, rank, ftype))
 
-        print(list(zip_longest(*all_data))[0])
+        # print(list(zip_longest(*all_data))[0])
         all_data = functools.reduce(
             operator.iconcat, zip_longest(*all_data), [])
-        print(all_data[0])
+        # print(all_data[0])
 
         return list(filter(lambda x: x is not None, all_data))
 
@@ -277,6 +288,8 @@ class RenegUtils:
                     rank_contrib = rank_bin_widths[rank] \
                                    * rank_left_range * 1.0 / rank_total_range
                     cur_bin_count += rank_contrib
+
+                    # print('Rank ', rank, rank_total_range, rank_left_range)
 
                     if rank == bp_rank:
                         assert (not bp_is_start)
