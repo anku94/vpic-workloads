@@ -32,10 +32,30 @@ class RuntimeLog:
         ax.set_ylabel('B/W (MB/s)')
         ax.plot(data)
 
-        fig.savefig('../vis/runtime/diskbw.16x16.0s0.aggr.eps', dpi=600)
+        # fig.savefig('../vis/runtime/diskbw.temp.16x16.0s0.aggr.eps', dpi=600)
 
-        # rankwise_data = chunk_it(self.data, 4)
-        #
+        rankwise_data = chunk_it(self.data, 4)
+        rankwise_len = max(map(lambda x: len(x), rankwise_data))
+        rankwise_band_min = numpy.array([99999] * rankwise_len)
+        rankwise_band_max = numpy.array([0] * rankwise_len)
+        num_ranks = len(rankwise_data)
+
+        for ridx in range(num_ranks):
+            cur_data = rankwise_data[ridx]
+            print(cur_data)
+            rankwise_band_max = numpy.maximum(rankwise_band_max, cur_data)
+            rankwise_band_min = numpy.minimum(rankwise_band_min, cur_data)
+
+        print(rankwise_band_min, rankwise_band_max)
+
+        ax2 = ax.twinx()
+        ax2_color=(0.8, 0.2, 0.2, 0.8)
+        ax2.fill_between(range(rankwise_len),
+                        rankwise_band_min,
+                        rankwise_band_max,
+                        facecolor=ax2_color)
+        ax2.tick_params(axis='y', labelcolor=ax2_color)
+
         # fig, axes = plt.subplots(2, 2)
         # num_ranks = 4
         # for ridx in range(num_ranks):
@@ -43,12 +63,12 @@ class RuntimeLog:
         #     x = int(ridx%2)
         #     ax = axes[y][x]
         #     ax.plot(rankwise_data[ridx])
-        #     ax.set_title('Rank %d' % (ridx,))
+        #     ax.set_title('Node %d' % (ridx,))
         #     ax.set_xlabel('Time (seconds)')
         #     ax.set_ylabel('B/W (MB/s)')
-        #
-        # fig.tight_layout()
-        # fig.savefig('../vis/runtime/diskbw.64x1.8s60.rankwise.eps', dpi=600)
+
+        fig.tight_layout()
+        fig.savefig('../vis/runtime/diskbw.temp.64x1.8s60.nodewise.pdf', dpi=600)
 
     @staticmethod
     def _adjacent_diff(data):
