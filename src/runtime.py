@@ -23,18 +23,19 @@ class RuntimeLog:
         data = [numpy.array(data[ridx][:common_len]) for ridx in range(self.num_ranks)]
         self.data = data
 
-    def plot_data(self):
+    def plot_data(self, plot_path, skew_pct):
         data = sum(self.data)
 
         fig, ax = plt.subplots(1, 1)
-        ax.set_title('Aggregate Disk B/W for %d ranks, skew none' % (self.num_ranks,))
+        skew_str = 'none' if int(skew_pct) == 0 else skew_pct
+        ax.set_title('Aggregate Disk B/W for %d ranks, skew %s' % (self.num_ranks,skew_str))
         ax.set_xlabel('Time (seconds)')
         ax.set_ylabel('B/W (MB/s)')
         ax.plot(data)
 
         # fig.savefig('../vis/runtime/diskbw.temp.16x16.0s0.aggr.eps', dpi=600)
 
-        rankwise_data = chunk_it(self.data, 4)
+        rankwise_data = chunk_it(self.data, 16)
         rankwise_len = max(map(lambda x: len(x), rankwise_data))
         rankwise_band_min = numpy.array([99999] * rankwise_len)
         rankwise_band_max = numpy.array([0] * rankwise_len)
@@ -68,7 +69,7 @@ class RuntimeLog:
         #     ax.set_ylabel('B/W (MB/s)')
 
         fig.tight_layout()
-        fig.savefig('../vis/runtime/diskbw.temp.64x1.8s60.nodewise.pdf', dpi=600)
+        fig.savefig(plot_path, dpi=600)
 
     @staticmethod
     def _adjacent_diff(data):
