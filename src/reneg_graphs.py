@@ -26,7 +26,7 @@ def log_tailed_reverse(x, cutoff):
 
 
 def generate_distribution_box(data_path: str, num_ranks: int,
-                                 timesteps: int):
+                              timesteps: int):
     # num_ranks = 4
     vpic_reader = VPICReader(data_path, num_ranks=num_ranks)
     fig = go.Figure()
@@ -99,7 +99,8 @@ def generate_distribution_violin(data_path: str, num_ranks: int,
         percent_tail = tail_data * 100.0 / len(plotted_data)
 
         print('TS {0}, < {1}: {2:.2f}'.format(tsidx, head_cutoff, percent_head))
-        print('TS {0}, < {1}: {2:.2f}'.format(tsidx, head_cutoff_2, percent_head_2))
+        print('TS {0}, < {1}: {2:.2f}'.format(tsidx, head_cutoff_2,
+                                              percent_head_2))
         print('TS {0}, > {1}: {2:.2f}'.format(tsidx, tail_cutoff, percent_tail))
 
         plotted_data = list(map(lambda x: log_tailed(x, 10), plotted_data))
@@ -135,10 +136,11 @@ def generate_distribution_violin(data_path: str, num_ranks: int,
     fig.show()
     # fig.write_image('../vis/poster/vpic32.distrib.violin.{0}.pdf'.format(bw_value))
 
+
 def gen_annotation(all_shapes, all_annotations, label, x, ymin, ymax):
-    ref=1
-    xref = 'x%s'%(ref,)
-    yref = 'y%s'%(ref,)
+    ref = 1
+    xref = 'x%s' % (ref,)
+    yref = 'y%s' % (ref,)
 
     x0 = str(x - 0.04)
     x1 = str(x)
@@ -157,19 +159,23 @@ def gen_annotation(all_shapes, all_annotations, label, x, ymin, ymax):
 
     line_color = px.colors.qualitative.Bold[2]
 
-    shapes=[
+    shapes = [
         dict(type='line', xref=xref, yref=yref,
-             x0=x1, y0=ymin, x1=x1, y1=ymax, line_color=line_color, line_width=1),
+             x0=x1, y0=ymin, x1=x1, y1=ymax, line_color=line_color,
+             line_width=1),
         dict(type='line', xref=xref, yref=yref,
-             x0=x0, y0=ymin, x1=x1, y1=ymin, line_color=line_color, line_width=1),
+             x0=x0, y0=ymin, x1=x1, y1=ymin, line_color=line_color,
+             line_width=1),
         dict(type='line', xref=xref, yref=yref,
-             x0=x0, y0=ymax, x1=x, y1=ymax, line_color=line_color, line_width=1),
+             x0=x0, y0=ymax, x1=x, y1=ymax, line_color=line_color,
+             line_width=1),
     ]
 
     all_shapes.extend(shapes)
 
+
 def generate_distribution_violin_alt(data_path: str, num_ranks: int,
-                                 timesteps: int, bw_value: float):
+                                     timesteps: int, bw_value: float):
     # num_ranks = 1
     vpic_reader = VPICReader(data_path, num_ranks=num_ranks)
     fig = go.Figure()
@@ -196,7 +202,8 @@ def generate_distribution_violin_alt(data_path: str, num_ranks: int,
         percent_tail = tail_data * 100.0 / len(plotted_data)
 
         print('TS {0}, < {1}: {2:.2f}'.format(tsidx, head_cutoff, percent_head))
-        print('TS {0}, < {1}: {2:.2f}'.format(tsidx, head_cutoff_2, percent_head_2))
+        print('TS {0}, < {1}: {2:.2f}'.format(tsidx, head_cutoff_2,
+                                              percent_head_2))
         print('TS {0}, > {1}: {2:.2f}'.format(tsidx, tail_cutoff, percent_tail))
 
         plotted_data = list(map(lambda x: log_tailed(x, 10), plotted_data))
@@ -219,7 +226,8 @@ def generate_distribution_violin_alt(data_path: str, num_ranks: int,
         fig.add_trace(violin_data)
         label = 'Tail Mass: <br />  {0:.1f}%'.format(100 - percent_head_2)
         print(label)
-        gen_annotation(all_shapes, all_annotations, label, tsidx + 0.5, 4, max(plotted_data))
+        gen_annotation(all_shapes, all_annotations, label, tsidx + 0.5, 4,
+                       max(plotted_data))
 
     fig.update_traces(width=1.8)
     fig.update_layout(
@@ -227,7 +235,7 @@ def generate_distribution_violin_alt(data_path: str, num_ranks: int,
             title=dict(
                 text="Simulation Time (s)",
             ),
-            ticktext=[ "100", "950", "1900", "2850"],
+            ticktext=["100", "950", "1900", "2850"],
             tickvals=[x + 0.2 for x in range(4)],
             color='#000',
             linecolor='#444',
@@ -248,17 +256,18 @@ def generate_distribution_violin_alt(data_path: str, num_ranks: int,
         shapes=all_shapes,
         annotations=all_annotations,
         showlegend=False,
-        legend=dict(x=0.87,y=1),
+        legend=dict(x=0.87, y=1),
         font=dict(size=18)
     )
 
     # fig.show()
-    fig.write_image('../vis/poster/vpic32.distrib.violin.alt.{0}.pdf'.format(bw_value))
+    fig.write_image(
+        '../vis/poster/vpic32.distrib.violin.alt.{0}.pdf'.format(bw_value))
 
 
-def gen_skew_runtime_util(fig, data, num_ranks, percent):
+def gen_skew_runtime_util(fig, data, num_ranks, col_hash_val,
+                          nodes=None, percent=None):
     col_x = data['skewpct'].to_numpy()
-
 
     col_xrev = col_x[::-1]
     col_mean = data['runtime']['mean'].to_numpy()
@@ -266,23 +275,41 @@ def gen_skew_runtime_util(fig, data, num_ranks, percent):
     col_max = data['runtime']['max'].to_numpy()
     col_min = col_min[::-1]
 
-    col_hash = lambda x: (x * (x - 1)) ^ (x % 3) % 657
-    color_idx = col_hash(num_ranks) % (len(px.colors.qualitative.Dark2))
+    col_hash = lambda x: (x * (x - 1)) ^ (x % 7) % 239
+    color_idx = col_hash(col_hash_val) % (len(px.colors.qualitative.Dark2))
+    print(col_hash_val, color_idx)
 
     line_color = px.colors.qualitative.Dark2[color_idx]
     band_color = px.colors.qualitative.Pastel2[color_idx]
     band_color = band_color[:-1] + ',0.0)'
     print(line_color, band_color)
 
-    main_line = go.Scatter(x=col_x, y=col_mean, mode='lines',
-                           line=dict(color=line_color),
-                           name='{0} ranks ({1}%)'.format(num_ranks, percent))
-    main_band = go.Scatter(x=np.concatenate([col_x, col_xrev]),
-                           y=np.concatenate([col_max, col_min]), fill='tozerox',
-                           fillcolor=band_color,
-                           line=dict(color='rgba(255,255,255,0)'),
-                           name='{0} ranks ({1}%)'.format(num_ranks, percent),
-                           showlegend=False)
+    if percent:
+        main_line = go.Scatter(x=col_x, y=col_mean, mode='lines',
+                               line=dict(color=line_color),
+                               name='{0} ranks ({1}%)'.format(num_ranks,
+                                                              percent))
+        main_band = go.Scatter(x=np.concatenate([col_x, col_xrev]),
+                               y=np.concatenate([col_max, col_min]),
+                               fill='tozerox',
+                               fillcolor=band_color,
+                               line=dict(color='rgba(255,255,255,0)'),
+                               name='{0} ranks ({1}%)'.format(num_ranks,
+                                                              percent),
+                               showlegend=False)
+    elif nodes:
+        main_line = go.Scatter(x=col_x, y=col_mean, mode='lines',
+                               line=dict(color=line_color),
+                               name='{0} ranks ({1} nodes)'.format(num_ranks,
+                                                                   nodes))
+        main_band = go.Scatter(x=np.concatenate([col_x, col_xrev]),
+                               y=np.concatenate([col_max, col_min]),
+                               fill='tozerox',
+                               fillcolor=band_color,
+                               line=dict(color='rgba(255,255,255,0)'),
+                               name='{0} ranks ({1} nodes)'.format(num_ranks,
+                                                                   nodes),
+                               showlegend=False)
 
     # fig.add_traces([main_line])
     return main_line, main_band
@@ -312,7 +339,8 @@ def gen_skew_runtime():
 
         # skewnodepct = 10 if 26 else 20
 
-        line, band = gen_skew_runtime_util(fig, aggr_data, skewnodecnt, skewnodepct)
+        line, band = gen_skew_runtime_util(fig, aggr_data, skewnodecnt,
+                                           skewnodepct, percent=skewnodepct)
         all_lines.append(line)
         all_bands.append(band)
 
@@ -321,7 +349,7 @@ def gen_skew_runtime():
 
     fig.update_layout(title_text='Change in runtime as workload skew is varied',
                       yaxis=dict(
-                          range=[90,130],
+                          range=[90, 130],
                           title='Time (seconds)'
                       ),
                       xaxis=dict(
@@ -329,6 +357,52 @@ def gen_skew_runtime():
                       ))
     # fig.write_image('../vis/poster/runtimeskew.pdf')
     fig.show()
+    return
+
+
+def gen_skew_runtime_phynode():
+    csv_file = '../vis/runtime/runtime.batch.june30/runlog.txt'
+
+    data = pd.read_csv(csv_file)
+
+    fig = go.Figure()
+    all_lines = []
+    all_bands = []
+
+    for skewedphynodes in data['skewedphynodes'].unique():
+        print(skewedphynodes)
+
+        plot_data = data[data['skewedphynodes'] == skewedphynodes]
+        skewnodepct = plot_data['skewedphynodes'].iloc[0]
+        print(plot_data)
+
+        aggr_data = plot_data.groupby('skewpct').agg({
+            'runtime': ['min', 'max', 'mean'],
+        })
+        aggr_data['skewpct'] = aggr_data.index
+        aggr_data['skewpct'] = aggr_data['skewpct'].map(lambda x: x * 10 - 100)
+        print(aggr_data)
+
+        # skewnodepct =10 if 26 else 20
+
+        line, band = gen_skew_runtime_util(fig, aggr_data, 26, skewedphynodes,
+                                           nodes=skewedphynodes)
+        all_lines.append(line)
+        all_bands.append(band)
+
+    fig.add_traces(all_bands)
+    fig.add_traces(all_lines)
+
+    fig.update_layout(title_text='Change in runtime as workload skew is varied',
+                      yaxis=dict(
+                          range=[0, 145],
+                          title='Time (seconds)'
+                      ),
+                      xaxis=dict(
+                          title='Additional workload for skewed ranks (%)'
+                      ))
+    fig.write_image('../vis/runtime/runtime.batch.june30/runtimeskew.pdf')
+    # fig.show()
     return
 
 
@@ -342,5 +416,4 @@ if __name__ == '__main__':
     bw_value = 0.03
     # generate_distribution_violin_alt(data, num_ranks, timesteps, bw_value)
     # generate_distribution_box(data, num_ranks, timesteps)
-    gen_skew_runtime()
-
+    gen_skew_runtime_phynode()

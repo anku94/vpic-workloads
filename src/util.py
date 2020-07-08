@@ -14,7 +14,7 @@ from typing import List, Union
 EPSILON = 1e-4
 
 
-def chunk_it(ls, nchunks):
+def chunk_and_sum(ls, nchunks):
     chunk_size = int(len(ls) / nchunks)
     # print('chunk size: ', chunk_size)
     chunks = []
