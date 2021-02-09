@@ -1,10 +1,11 @@
+import hashlib
 import math
 
 import numpy as np
 import pandas as pd
+import sys
 
 from util import VPICReader, Histogram
-from reneg import Renegotiation
 from typing import List, Tuple
 
 import plotly.graph_objects as go
@@ -174,20 +175,23 @@ def gen_annotation(all_shapes, all_annotations, label, x, ymin, ymax):
     all_shapes.extend(shapes)
 
 
-def generate_distribution_violin_alt(data_path: str, num_ranks: int,
-                                     timesteps: int, bw_value: float):
+def generate_distribution_violin_alt(data_path: str, fig_path: str,
+                                     num_ranks: int = None,
+                                     bw_value: float = 0.03):
     # num_ranks = 1
     vpic_reader = VPICReader(data_path, num_ranks=num_ranks)
+    ranks = vpic_reader.get_num_ranks()
+    timesteps = vpic_reader.get_num_ts()
+    print('[VPICReader] Ranks: {0}, ts: {1}'.format(ranks, timesteps))
     fig = go.Figure()
 
     all_shapes = []
     all_annotations = []
 
     for tsidx in range(0, timesteps):
-        data = vpic_reader.read_global(tsidx)
-        print(len(data))
-        plotted_data = np.random.choice(data, 50000)
-        # plotted_data = np.random.choice(data, 500)
+        data = vpic_reader.sample_global(tsidx)
+        print('Read: ', len(data))
+        plotted_data = data
 
         head_cutoff = 0.5
         head_cutoff_2 = 4
@@ -261,8 +265,9 @@ def generate_distribution_violin_alt(data_path: str, num_ranks: int,
     )
 
     # fig.show()
-    fig.write_image(
-        '../vis/poster/vpic32.distrib.violin.alt.{0}.pdf'.format(bw_value))
+    # fig.write_image(
+    #     '../vis/poster/vpic32.distrib.violin.alt.{0}.pdf'.format(bw_value))
+    fig.write_image(fig_path)
 
 
 def gen_skew_runtime_util(fig, data, num_ranks, col_hash_val,
@@ -271,17 +276,22 @@ def gen_skew_runtime_util(fig, data, num_ranks, col_hash_val,
 
     col_xrev = col_x[::-1]
     col_mean = data['runtime']['mean'].to_numpy()
-    col_min = data['runtime']['min'].to_numpy()
-    col_max = data['runtime']['max'].to_numpy()
+    col_std = data['runtime']['std'].to_numpy()
+    col_min = col_mean - col_std
+    col_max = col_mean + col_std
+    # col_min = data['runtime']['min'].to_numpy()
+    # col_max = data['runtime']['max'].to_numpy()
     col_min = col_min[::-1]
 
-    col_hash = lambda x: (x * (x - 1)) ^ (x % 7) % 239
+    col_hash = lambda x: ((x + 3) * (x - 1)) ^ (x % 13) % 239
+    col_hash = lambda x: int(hashlib.sha1(str(x).encode('utf-8')).hexdigest(),
+                             16) % (10 ** 8)
     color_idx = col_hash(col_hash_val) % (len(px.colors.qualitative.Dark2))
     print(col_hash_val, color_idx)
 
     line_color = px.colors.qualitative.Dark2[color_idx]
     band_color = px.colors.qualitative.Pastel2[color_idx]
-    band_color = band_color[:-1] + ',0.0)'
+    band_color = 'rgba' + band_color[3:-1] + ',0.5)'
     print(line_color, band_color)
 
     if percent:
@@ -360,8 +370,57 @@ def gen_skew_runtime():
     return
 
 
+def gen_skew_runtime_custom():
+    csv_file = '../vis/runtime/runtime.ssd/runlog.vfstune.txt'
+
+    data = pd.read_csv(csv_file, comment='#')
+    data = data['runtime']
+
+    all_mean = []
+    all_std = []
+    all_labels = [
+        '64G/32K/20G',
+        '64G/32K/2G',
+        '64G/32K/200M',
+        '64G/32K/10%/r',
+        '64G/32K/20G/r',
+        '64G/32K/2G/r',
+        '64G/32K/200M/r',
+        '16G/32K/10%/r',
+        '16G/32K/2G/r',
+        '16G/32K/200M/r',
+    ]
+
+    for sidx in range(0, len(data), 9):
+        # print(sidx, sidx+9)
+        cur_data = data[sidx:sidx + 9]
+        cur_mean = np.mean(cur_data)
+        cur_std = np.std(cur_data)
+        # print(cur_mean, cur_std)
+        all_mean.append(cur_mean)
+        all_std.append(cur_std)
+
+    print(all_mean)
+    print(all_std)
+
+    fig = go.Figure()
+    fig_bar = go.Bar(x=all_labels,
+                     y=all_mean,
+                     error_y=dict(type='data', array=all_std)
+                     )
+    fig.add_trace(fig_bar)
+    fig.update_layout(
+        title_text='Mean runtime for different VFS tuning parameters',
+        yaxis=dict(
+            title='Time (seconds)'
+        )
+    )
+    # fig.show()
+    fig.write_image('../vis/runtime/runtime.ssd/vfs_vs_runtime.pdf')
+
+
 def gen_skew_runtime_phynode():
-    csv_file = '../vis/runtime/runtime.batch.june30/runlog.txt'
+    csv_file = '../vis/runtime/runtime.batch.jul14/runlog.txt'
 
     data = pd.read_csv(csv_file)
 
@@ -370,14 +429,16 @@ def gen_skew_runtime_phynode():
     all_bands = []
 
     for skewedphynodes in data['skewedphynodes'].unique():
+        if skewedphynodes != 2: continue
         print(skewedphynodes)
 
         plot_data = data[data['skewedphynodes'] == skewedphynodes]
         skewnodepct = plot_data['skewedphynodes'].iloc[0]
+        skewnodecnt = plot_data['skewnodecnt'].iloc[0]
         print(plot_data)
 
         aggr_data = plot_data.groupby('skewpct').agg({
-            'runtime': ['min', 'max', 'mean'],
+            'runtime': ['min', 'max', 'mean', 'std'],
         })
         aggr_data['skewpct'] = aggr_data.index
         aggr_data['skewpct'] = aggr_data['skewpct'].map(lambda x: x * 10 - 100)
@@ -385,10 +446,28 @@ def gen_skew_runtime_phynode():
 
         # skewnodepct =10 if 26 else 20
 
-        line, band = gen_skew_runtime_util(fig, aggr_data, 26, skewedphynodes,
+        line, band = gen_skew_runtime_util(fig, aggr_data, skewnodecnt,
+                                           skewedphynodes,
                                            nodes=skewedphynodes)
         all_lines.append(line)
         all_bands.append(band)
+
+    csv_file_2 = '../vis/runtime/runtime.ram16g.jul20/runlog.16g.txt'
+    data_2 = pd.read_csv(csv_file_2)
+
+    aggr_data_2 = data_2.groupby('skewpct').agg({
+        'runtime': ['min', 'max', 'mean', 'std'],
+    })
+    aggr_data_2['skewpct'] = aggr_data_2.index
+    aggr_data_2['skewpct'] = aggr_data_2['skewpct'].map(lambda x: x * 10 - 100)
+    print(aggr_data_2)
+    line, band = gen_skew_runtime_util(fig, aggr_data_2, 32, 4, nodes=2)
+
+    all_lines.append(line)
+
+    all_lines[0].name = 'mem=64g (32/2 overloaded)'
+    all_lines[1].name = 'mem=16g (32/2 overloaded)'
+    all_bands.append(band)
 
     fig.add_traces(all_bands)
     fig.add_traces(all_lines)
@@ -401,7 +480,7 @@ def gen_skew_runtime_phynode():
                       xaxis=dict(
                           title='Additional workload for skewed ranks (%)'
                       ))
-    fig.write_image('../vis/runtime/runtime.batch.june30/runtimeskew.pdf')
+    fig.write_image('../vis/runtime/runtime.ram16g.jul20/runtimeskew.pdf')
     # fig.show()
     return
 
@@ -414,6 +493,7 @@ if __name__ == '__main__':
     # # for bw_value in [0.0001, 0.001, 0.01, 0.1]:
     #
     bw_value = 0.03
-    # generate_distribution_violin_alt(data, num_ranks, timesteps, bw_value)
+    generate_distribution_violin_alt(data, num_ranks, bw_value)
     # generate_distribution_box(data, num_ranks, timesteps)
-    gen_skew_runtime_phynode()
+    # gen_skew_runtime_phynode()
+    # gen_skew_runtime_custom()

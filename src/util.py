@@ -5,11 +5,13 @@ import numpy as np
 import operator
 import re
 import struct
+import os
 
-from itertools import zip_longest
+from itertools import zip_longest, product
 from math import fabs
+from multiprocessing import Pool
 from pathlib import Path
-from typing import List, Union
+from typing import List, Union, Tuple
 
 EPSILON = 1e-4
 
@@ -85,11 +87,15 @@ class VPICReader:
     def get_num_ranks(self) -> int:
         return self.num_ranks
 
+    def get_num_ts(self) -> int:
+        return len(self.timesteps)
+
     def get_ts(self, ts_idx: int) -> int:
         ts_int = re.findall('\d+', self.timesteps[ts_idx].name)[0]
         return ts_int
 
-    def read_a_rank(self, timestep: int, rank: int, ftype: str = 'eparticle') -> List[str]:
+    def read_a_rank(self, timestep: int, rank: int, ftype: str = 'eparticle') -> \
+            List[str]:
         ts_str = re.findall('\d+', self.timesteps[timestep].name)[0]
         rank_fname = self.timesteps[timestep] / \
                      ("%s.%s.%s" % (ftype, ts_str, rank))
@@ -122,6 +128,54 @@ class VPICReader:
         # print(all_data[0])
 
         return list(filter(lambda x: x is not None, all_data))
+
+    @staticmethod
+    def sample_a_rank(fpath: str, intvl_cnt: int = 10,
+                      intvl_samples: int = 2) -> List[float]:
+        print(fpath)
+        fsize = os.path.getsize(fpath)
+        offsets = np.arange(intvl_cnt) * (fsize / intvl_cnt)
+        offsets = offsets.astype(int)
+        offsets = offsets & (~3)
+        vals = []
+        with open(fpath, 'rb') as f:
+            for offset in offsets:
+                f.seek(offset, 0)
+                for sample in range(intvl_samples):
+                    data = f.read(4)
+                    val = struct.unpack('f', data)[0]
+                    if val: vals.append(val)
+
+        return vals
+
+    @staticmethod
+    def sample_a_rank_unpack(args: Tuple) -> List[float]:
+        return VPICReader.sample_a_rank(args[0], intvl_cnt=args[1],
+                                        intvl_samples=args[2])
+
+    def rank_fpath(self, timestep: int, rank: int,
+                   ftype: str = 'eparticle') -> str:
+        ts_str = re.findall('\d+', self.timesteps[timestep].name)[0]
+        rank_fname = self.timesteps[timestep] / \
+                     ("%s.%s.%s" % (ftype, ts_str, rank))
+        return rank_fname
+
+    def sample_global(self, timestep: int, ftype: str = 'eparticle') -> List[
+        str]:
+        num_ranks = self.get_num_ranks()
+        rank_paths = [self.rank_fpath(timestep, rank, ftype) for rank in
+                      range(num_ranks)]
+        INTVL_COUNT = 100
+        INTVL_SAMPLES =  100
+        rpath_args = [(x, INTVL_COUNT, INTVL_SAMPLES) for x in rank_paths]
+        print(rank_paths)
+
+        data = None
+        with Pool(processes=8) as pool:
+            data = pool.map(self.sample_a_rank_unpack, rpath_args)
+
+        data = functools.reduce(operator.iconcat, data, [])
+        return data
 
 
 class Histogram:
@@ -182,7 +236,8 @@ class Histogram:
             if bin_idx == nbins:
                 break
 
-            if ApproxComp.approx_altb(mass_cur + old_hist[bin_idx], mass_per_bin):
+            if ApproxComp.approx_altb(mass_cur + old_hist[bin_idx],
+                                      mass_per_bin):
                 mass_cur += old_hist[bin_idx]
                 bin_idx += 1
                 continue
@@ -194,7 +249,8 @@ class Histogram:
             cur_bin_start = old_edges[bin_idx]
             cur_bin_end = old_edges[bin_idx + 1]
 
-            while ApproxComp.approx_agteqb(mass_cur + cur_bin_left, mass_per_bin):
+            while ApproxComp.approx_agteqb(mass_cur + cur_bin_left,
+                                           mass_per_bin):
                 take_from_bin = mass_per_bin - mass_cur
                 mass_cur = 0
 
@@ -249,7 +305,8 @@ class RenegUtils:
         return rbvec
 
     @staticmethod
-    def pivot_union(rb_items: List, rank_bin_widths: List[float], num_ranks: int):
+    def pivot_union(rb_items: List, rank_bin_widths: List[float],
+                    num_ranks: int):
         assert (len(rb_items) > 2)
 
         BIN_EMPTY = rb_items[0][1] - 10
