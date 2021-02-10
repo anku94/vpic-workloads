@@ -41,11 +41,12 @@ class RuntimeLog:
         self.data_phy = clip_common(data_phy)
         # self.data = data
 
-    def plot_data(self):
+    def plot_data(self, plot_path, skew_pct):
         data = sum(self.data_log)
 
         fig, ax = plt.subplots(1, 1)
-        ax.set_title('Aggregate Disk B/W for %d ranks, skew none' % (self.num_ranks,))
+        skew_str = 'none' if int(skew_pct) == 0 else skew_pct
+        ax.set_title('Aggregate Disk B/W for %d ranks, skew %s' % (self.num_ranks,skew_str))
         ax.set_xlabel('Time (seconds)')
         ax.set_ylabel('B/W (MB/s)')
         ax.plot(data)
@@ -103,8 +104,8 @@ class RuntimeLog:
         #     ax.set_ylabel('B/W (MB/s)')
 
         fig.tight_layout()
-        fig.show()
         # fig.savefig('../vis/runtime/diskbw.temp.64x1.8s60.nodewise.pdf', dpi=600)
+        fig.savefig(plot_path, dpi=600)
 
     # Resamples 10:1, 100ms -> 1s
     @staticmethod
