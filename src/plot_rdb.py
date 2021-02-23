@@ -15,7 +15,6 @@ def plot_epoch(path_csv: str, path_plot: str, ax_aggr=None,
     data_x = data['Point']
     data_y = data['MatchMass'] * 100.0 / data['TotalMass']
     fig, ax = plt.subplots(1, 1)
-    ax = fig.subplots(1, 1)
     ax.plot(data_x, data_y, label='Epoch {0}: Overlap %'.format(epoch))
 
     if ax_aggr:
