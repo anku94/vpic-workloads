@@ -38,6 +38,11 @@ def plot_reneg_std(perf_path: str, fig_path: str) -> None:
     data_y = []
 
     load_prev = merged_stats[0]
+    epoch = 0
+    fig, ax = plt.subplots(1, 1)
+
+    linestyle = '-'
+
     for stat in merged_stats[1:]:
         load_intvl = stat - load_prev
         load_prev = stat
@@ -48,14 +53,20 @@ def plot_reneg_std(perf_path: str, fig_path: str) -> None:
         else:
             stat_y = np.std(load_intvl) * 1.0 / sum(load_intvl)
 
+        if stat_x < 100:
+            ax.plot(data_x, data_y, linestyle, mec='purple', label='Epoch {0}'.format(epoch))
+            epoch += 1
+            data_x = []
+            data_y = []
+
         data_x.append(stat_x)
         data_y.append(stat_y)
 
-    fig, ax = plt.subplots(1, 1)
-    ax.plot(data_x, data_y, 'x--', mec='purple')
+    ax.plot(data_x, data_y, linestyle, mec='purple', label='Epoch {0}'.format(epoch))
     ax.set_xlabel('Total Data Volume')
     ax.set_ylabel('Normalized Stddev')
     ax.set_title('Renegotiation Events vs Interval Stddev')
+    ax.legend()
     plot_out = fig_path + '/reneg_vs_std.pdf'
     # fig.show()
     fig.savefig(plot_out, dpi=300)
