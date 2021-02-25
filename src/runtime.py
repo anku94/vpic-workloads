@@ -25,8 +25,8 @@ class RuntimeLog:
         data_phy = data[1]
 
         print('---------------')
-        print(data_log)
-        print(data_phy)
+        #  print(data_log)
+        #  print(data_phy)
 
         def clip_common(data):
             data_len = map(lambda x: len(x), data)
@@ -142,15 +142,26 @@ class RuntimeLog:
         fpath = self.data_path + '/vpic-perfstats.log.%d' % (rank_id)
         fdata = pd.read_csv(fpath)
 
-        logical_bytes = fdata['Logical Bytes Written']
-        physical_secs = fdata['Disk Sectors Written']
+        logical_key_str = 'Logical Bytes Written'
+        physical_key_str = 'Disk Sectors Written'
 
-        # convert ms level data to sec level
-        logical_bytes = logical_bytes.iloc[::10]
-        # convert ms level data to sec level
-        physical_secs = physical_secs.iloc[::10]
+        if logical_key_str in fdata:
+            logical_bytes = fdata['Logical Bytes Written']
+            # convert ms level data to sec level
+            logical_bytes = logical_bytes.iloc[::10]
+            logical_mbps = logical_bytes.diff().dropna() / (1024.0 ** 2)
+        else:
+            logical_mbps = pd.Series()
 
-        logical_mbps = logical_bytes.diff().dropna() / (1024.0 ** 2)
-        # 512B sectors, so MBps = delta * 512 / (1024 * 1024)
-        physical_mbps = physical_secs.diff().dropna() / (1024.0 * 2)
+        if physical_key_str in fdata:
+            physical_secs = fdata['Disk Sectors Written']
+
+            # convert ms level data to sec level
+            physical_secs = physical_secs.iloc[::10]
+
+            # 512B sectors, so MBps = delta * 512 / (1024 * 1024)
+            physical_mbps = physical_secs.diff().dropna() / (1024.0 * 2)
+        else:
+            physical_mbps = pd.Series()
+
         return (logical_mbps, physical_mbps)

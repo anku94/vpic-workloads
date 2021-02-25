@@ -165,13 +165,13 @@ class VPICReader:
         num_ranks = self.get_num_ranks()
         rank_paths = [self.rank_fpath(timestep, rank, ftype) for rank in
                       range(num_ranks)]
-        INTVL_COUNT = 100
-        INTVL_SAMPLES =  100
+        INTVL_COUNT = 50
+        INTVL_SAMPLES =  50
         rpath_args = [(x, INTVL_COUNT, INTVL_SAMPLES) for x in rank_paths]
         print(rank_paths)
 
         data = None
-        with Pool(processes=8) as pool:
+        with Pool(processes=64) as pool:
             data = pool.map(self.sample_a_rank_unpack, rpath_args)
 
         data = functools.reduce(operator.iconcat, data, [])

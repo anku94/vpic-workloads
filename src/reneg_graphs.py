@@ -151,11 +151,12 @@ def gen_annotation(all_shapes, all_annotations, label, x, ymin, ymax):
     ymax = str(ymax)
 
     all_annotations.append(dict(
-        x=x + 0.2,
+        x=x + 0.3,
         y=yann,
         text=label,
         showarrow=False,
         xref=xref, yref=yref,
+        font=dict(size=12),
         textangle=270))
 
     line_color = px.colors.qualitative.Bold[2]
@@ -178,7 +179,7 @@ def gen_annotation(all_shapes, all_annotations, label, x, ymin, ymax):
 def generate_distribution_violin_alt(data_path: str, fig_path: str,
                                      num_ranks: int = None,
                                      bw_value: float = 0.03):
-    # num_ranks = 1
+    #  num_ranks = 4
     vpic_reader = VPICReader(data_path, num_ranks=num_ranks)
     ranks = vpic_reader.get_num_ranks()
     timesteps = vpic_reader.get_num_ts()
@@ -187,6 +188,8 @@ def generate_distribution_violin_alt(data_path: str, fig_path: str,
 
     all_shapes = []
     all_annotations = []
+
+    timestamps = [vpic_reader.get_ts(i) for i in range(vpic_reader.get_num_ts())]
 
     for tsidx in range(0, timesteps):
         data = vpic_reader.sample_global(tsidx)
@@ -230,7 +233,7 @@ def generate_distribution_violin_alt(data_path: str, fig_path: str,
         fig.add_trace(violin_data)
         label = 'Tail Mass: <br />  {0:.1f}%'.format(100 - percent_head_2)
         print(label)
-        gen_annotation(all_shapes, all_annotations, label, tsidx + 0.5, 4,
+        gen_annotation(all_shapes, all_annotations, label, tsidx + 0.1, 4,
                        max(plotted_data))
 
     fig.update_traces(width=1.8)
@@ -239,8 +242,8 @@ def generate_distribution_violin_alt(data_path: str, fig_path: str,
             title=dict(
                 text="Simulation Time (s)",
             ),
-            ticktext=["100", "950", "1900", "2850"],
-            tickvals=[x + 0.2 for x in range(4)],
+            ticktext=timestamps,
+            tickvals=[x + 0.2 for x in range(timesteps)],
             color='#000',
             linecolor='#444',
         ),
