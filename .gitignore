@@ -1,0 +1,9 @@
+*.pyc
+*.swp
+rundata
+vis
+.idea
+.DS_Store
+.ipynb_checkpoints
+*.tgz
+*.tbz2

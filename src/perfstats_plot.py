@@ -1,9 +1,41 @@
+import glob
+import os
+import re
+import sys
+from pathlib import Path
+
 import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
-from matplotlib.ticker import MaxNLocator
-import os, re
-import glob
+
+
+def get_file_params(fpath: Path):
+    rintvl = 250000
+    pvtcnt = 256
+
+    params = re.findall('intvl(\d+)', fpath)
+    if (params):
+        rintvl = params[0]
+
+    params = re.findall('pvtcnt(\d+)', fpath)
+    if (params):
+        pvtcnt = params[0]
+
+    return (rintvl, pvtcnt)
+
+
+def get_params(basedir: Path):
+    data = glob.glob(str(basedir) + '/**/vpic-perfstats.log.0', recursive=True);
+    print(data)
+
+    all_rintvl = set()
+    all_pvtcnt = set()
+    for file in data:
+        rintvl, pvtcnt = get_file_params(file)
+        all_rintvl.add(rintvl)
+        all_pvtcnt.add(pvtcnt)
+
+    return (list(all_rintvl), list(all_pvtcnt))
 
 
 def strip_perfdata(raw_data):
@@ -44,9 +76,9 @@ def read_perflog(fpath, hdr_pref, data_pref):
 
 def gen_csv():
     intvl_arr = 250000 * np.array(range(1, 5))
-    intvl_arr = [ 2 * 10**7 ]
+    intvl_arr = [2 * 10 ** 7]
     pvtcnt_arr = np.array([64, 128, 256])
-    pvtcnt_arr = np.array([ 256 ])
+    pvtcnt_arr = np.array([256])
     print(intvl_arr)
     basedir = '../rundata/e2e_reg_intvl_att3/intvl{0}.pvtcnt{1}/vpic-perfstats.log.0'
     basedir = '../rundata/bigcarp_rel_paramsweep_e1toe7/intvl{0}.pvtcnt{1}/vpic-perfstats.log.0'
@@ -74,6 +106,7 @@ def gen_csv():
         data_csv.write(','.join(line) + '\n')
     data_csv.close()
 
+
 def gen_csv_2():
     intvl_arr = 250000 * np.array(range(1, 5))
     pvtcnt_arr = np.array([64, 128, 256])
@@ -98,23 +131,81 @@ def gen_csv_2():
         data_csv.write(','.join(line) + '\n')
     data_csv.close()
 
-def gen_runtime_csv():
-    basedir = '../rundata/bigcarp_rel_paramsweep_e1toe7'
-    data = glob.glob(basedir + '/**/vpic-perfstats.log.0');
+
+def gen_csv_inplace(basedir):
+    intvl_arr, pvtcnt_arr = get_params(basedir)
+    print(intvl_arr)
+    print(pvtcnt_arr)
+
+    header = None
+    all_data = []
+
+    logpath = str(basedir) + '/intvl{0}.pvtcnt{1}/vpic-perfstats.log.0'
+
+    for intvl in intvl_arr:
+        for pvtcnt in pvtcnt_arr:
+            fullpath = logpath.format(intvl, pvtcnt)
+            cur_header, cur_data = read_perflog(fullpath, ['RENEG_INTERVAL',
+                                                           'RENEG_PVTCNT'],
+                                                [str(intvl), str(pvtcnt)])
+            if header == None:
+                header = cur_header
+            all_data += cur_data
+
+    data_csv = open(str(basedir) + '/perfstats.csv', 'w+')
+    data_csv.write(','.join(header) + '\n')
+    for line in all_data:
+        data_csv.write(','.join(line) + '\n')
+    data_csv.close()
+
+
+def gen_csv_inplace_glob(basedir):
+    intvl_arr, pvtcnt_arr = get_params(basedir)
+    print(intvl_arr)
+    print(pvtcnt_arr)
+
+    header = None
+    all_data = []
+
+    data = glob.glob(str(basedir) + '/**/vpic-perfstats.log.0', recursive=True);
+
+    for file in data:
+        intvl, pvtcnt = get_file_params(file)
+        cur_header, cur_data = read_perflog(file, ['RENEG_INTERVAL',
+                                                   'RENEG_PVTCNT'],
+                                            [str(intvl), str(pvtcnt)])
+        if header == None:
+            header = cur_header
+        all_data += cur_data
+
+    data_csv = open(str(basedir) + '/perfstats.csv', 'w+')
+    data_csv.write(','.join(header) + '\n')
+    for line in all_data:
+        data_csv.write(','.join(line) + '\n')
+    data_csv.close()
+
+
+def gen_runtime_csv(basedir):
+    basedir = str(basedir)
+    data = glob.glob(basedir + '/**/vpic-perfstats.log.0', recursive=True)
     print(data)
 
     csvpath = basedir + '/runtime.csv'
     df = pd.DataFrame()
 
     for file in data:
-        params = re.findall('intvl(\d+).pvtcnt(\d+)', file)[0]
-        rintvl, pvtcnt = params
+        # params = re.findall('intvl(\d+).pvtcnt(\d+)', file)[0]
+        rintvl, pvtcnt = get_file_params(file)
         fdata = open(file).readlines()[:-10]
         fdata = [line for line in fdata if not line.startswith('0,')]
+        std_data = [line for line in fdata if 'RENEG_AGGR_STD' in line][0]
+        print(std_data)
+        std = float(std_data.split(',')[-1])
         max_ts = fdata[-1].split(',')[0]
         # rintvl = int(rintvl)
         max_ts = int(max_ts)
-        data = {'rnum': int(rintvl), 'rintvl': rintvl, 'pvtcnt': pvtcnt, 'runtime': max_ts}
+        data = {'rnum': int(rintvl), 'rintvl': rintvl, 'pvtcnt': pvtcnt,
+                'runtime': max_ts, 'std': std}
         print(data)
         if max_ts < 1e6: continue
         df = df.append(data, ignore_index=True)
@@ -130,14 +221,21 @@ def gen_runtime_csv():
 
     fig, ax = plt.subplots(1, 1)
     ax.plot(df['rintvl'], df['runtime'])
-    ax.set_ylim([70, 130])
+    ax.set_ylim([0, 70])
+
+    ax2 = ax.twinx()
+    ax2.plot(df['rintvl'], df['std'] * 100, 'g--')
+
     ax.set_ylabel('Time (minutes)')
     ax.set_xlabel('Renegotiation Interval')
-    ax.set_title('Reneg Interval vs Runtime (preliminary)')
-    fig.savefig('../vis/bigcarp/runtime_pre.pdf', dpi=300)
+    ax2.set_ylabel('Normalized Load Stddev (%)')
+    ax.set_title('Reneg Interval vs Runtime')
+    # fig.show()
+    fig.savefig(basedir + '/runtime.pdf', dpi=300)
 
-def plot_pvtcnt():
-    all_data = pd.read_csv('../rundata/bigcarp.e17.perfstats.csv')
+
+def plot_pvtcnt(basedir: str):
+    all_data = pd.read_csv(basedir + '/perfstats.csv')
 
     for intvl in all_data['RENEG_INTERVAL'].unique():
         fig, ax = plt.subplots(1, 1)
@@ -151,20 +249,26 @@ def plot_pvtcnt():
             print(cur_data)
             print(pvtcnt)
 
-
-        base_overlap = 100.0/512
+        base_overlap = 100.0 / 512
         ax.plot([0, 6], [base_overlap, base_overlap], 'r--')
         ax.set_xlabel('Epoch Index')
         ax.set_ylabel('Overlap Percent')
-        ax.set_title('Partitioning Quality vs Epoch as f(pvtcnt) (intvl={0})'.format(intvl))
+        ax.set_title(
+            'Partitioning Quality vs Epoch as f(pvtcnt) (intvl={0})'.format(
+                intvl))
         ax.legend()
-        # fig.show()
+        fig.show()
         # break
-        fig.savefig('../vis/bigcarp/pvtcnt_vs_olap.rintvl{0}.pdf'.format(intvl), dpi=600)
+        # fig.savefig('../vis/bigcarp/pvtcnt_vs_olap.rintvl{0}.pdf'.format(intvl), dpi=600)
+        # fig.savefig(basedir + '/pvtcnt_vs_olap.rintvl{0}.pdf'.format(intvl),
+        #             dpi=600)
 
-def plot_intvl():
+
+def plot_intvl(basedir: str):
     # all_data = pd.read_csv('../rundata/bigcarp.e17.perfstats.csv')
-    all_data = pd.read_csv('../rundata/bigcarp_rel_oneneg_oob/bigcarp.e17.perfstats.csv')
+    # all_data = pd.read_csv(
+    #     '../rundata/bigcarp_rel_oneneg_oob/bigcarp.e17.perfstats.csv')
+    all_data = pd.read_csv(basedir + '/perfstats.csv')
 
     param_filter = 'RENEG_PVTCNT'
     param_group = 'RENEG_INTERVAL'
@@ -182,22 +286,28 @@ def plot_intvl():
             print(cur_data)
             print(pvtcnt)
 
-
-        base_overlap = 100.0/512
+        base_overlap = 100.0 / 512
         ax.plot([0, 6], [base_overlap, base_overlap], 'r--')
         ax.set_xlabel('Epoch Index')
         ax.set_ylabel('Overlap Percent')
-        ax.set_title('Partitioning Quality vs Epoch as f(frequency) (pvtcnt={0})'.format(pvtcnt))
+        ax.set_title(
+            'Partitioning Quality vs Epoch as f(frequency) (pvtcnt={0})'.format(
+                pvtcnt))
         ax.legend()
         # fig.show()
-        # break
-        fig.savefig('../vis/bigcarp/pvtcnt_vs_rintvl.pvtcnt{0}.extreme.oobsz.pdf'.format(pvtcnt), dpi=600)
+        # fig.savefig(
+        #     '../vis/bigcarp/pvtcnt_vs_rintvl.pvtcnt{0}.extreme.oobsz.pdf'.format(
+        #         pvtcnt), dpi=600)
+        fig.savefig(
+            basedir + '/pvtcnt_vs_rintvl.pvtcnt{0}.pdf'.format(
+                pvtcnt), dpi=600)
+
 
 def plot_real_vpic():
     data = [0.2631, 0.2626, 0.2626, 0.2628, 0.2626]
     pvtcnt = 256
     intvl = 500000
-    partcnt=2e9
+    partcnt = 2e9
 
     fig, ax = plt.subplots(1, 1)
     ax.plot(range(len(data)), data)
@@ -208,6 +318,7 @@ def plot_real_vpic():
     ax.set_xlabel('Epoch Index')
     ax.set_ylabel('Overlap Percent')
     fig.savefig('../vis/e2e/realvpic.pdf')
+
 
 def plot_bigcarp_renegintvl():
     intervals = ['250K', '500K', '750K']
@@ -234,6 +345,7 @@ def plot_bigcarp_renegintvl():
     # fig.show()
     fig.savefig('../vis/bigcarp/reneg_intvl.pdf', dpi=300)
 
+
 def plot_bigcarp_pvtcnt():
     pvtcnts = ['64', '128', '256']
 
@@ -259,6 +371,7 @@ def plot_bigcarp_pvtcnt():
     fig.show()
     # fig.savefig('../vis/bigcarp/reneg_pvtcnt.pdf', dpi=300)
 
+
 if __name__ == '__main__':
     # gen_csv()
     # plot_bigcarp_renegintvl()
@@ -266,4 +379,8 @@ if __name__ == '__main__':
     # plot_pvtcnt()
     # plot_intvl()
     # plot_real_vpic()
-    gen_runtime_csv()
+    # path = Path('../rundata/carp64_intvlsweep')
+    path = Path('/Users/schwifty/Repos/workloads/rundata/perfstats')
+    # gen_runtime_csv(path)
+    # gen_csv_inplace_glob(path)
+    plot_intvl(str(path))
