@@ -3,8 +3,9 @@ import argparse
 import sys
 
 
-def gen_violin(data: str, image: str):
+def run(data: str, image: str):
     generate_distribution_violin_alt(data, image)
+
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(
@@ -29,4 +30,4 @@ if __name__ == '__main__':
         sys.exit(0)
 
     if options.violin:
-        gen_violin(options.data, options.output_image)
+        run(options.data, options.output_image)

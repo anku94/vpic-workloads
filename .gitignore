@@ -7,3 +7,5 @@ vis
 .ipynb_checkpoints
 *.tgz
 *.tbz2
+__pycache__/
+.pyperfcache
