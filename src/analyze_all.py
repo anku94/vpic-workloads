@@ -25,10 +25,10 @@ def analyze_input(path_in: str, path_out: str):
     run_violin(path_in, path_out)
 
 
-def analyze_output(path_exp: str):
-    path_exp = Path(path_exp) / 'exp-info'
-    path_plfs = Path(path_exp) / 'plfs' / 'particle'
-    path_plots = Path(path_exp) / 'plots'
+def analyze_output(path_in: str):
+    path_exp = Path(path_in) / 'exp-info'
+    path_plfs = Path(path_in) / 'plfs' / 'particle'
+    path_plots = Path(path_in) / 'plots'
 
     if not path_plots.exists():
         path_plots.mkdir()

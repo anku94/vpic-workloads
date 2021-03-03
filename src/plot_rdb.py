@@ -18,7 +18,8 @@ def plot_epoch(path_csv: str, path_plot: str, ax_aggr=None,
     ax.plot(data_x, data_y, label='Epoch {0}: Overlap %'.format(epoch))
 
     if ax_aggr:
-        ax_aggr.plot(data_x, data_y, label='Epoch {0}: Overlap %'.format(epoch))
+        ax_aggr.plot(data_x, data_y,
+                     label='Epoch {0}: RDB Overlap %'.format(epoch))
 
     if plot_olap:
         ax2 = ax.twinx()
@@ -26,6 +27,16 @@ def plot_epoch(path_csv: str, path_plot: str, ax_aggr=None,
         ax2.plot(data_x, data_olap,
                  label='Epoch {0}: Overlap Count'.format(epoch))
 
+    path_rtp_csv = re.sub('manifest\.e', 'rtp.olap.e', path_csv)
+    path_rtp_csv = Path(path_rtp_csv)
+
+    if path_rtp_csv.exists():
+        data = pd.read_csv(path_rtp_csv)
+        data_x = data['Point']
+        data_y = data['MatchMass'] * 100.0 / data['TotalMass']
+        ax.plot(data_x, data_y, label='Epoch {0}: RTP Overlap %'.format(epoch))
+
+    ax.legend()
     ax.set_xlabel('Attribute Range')
     ax.set_ylabel('Overlap Percent')
     ax.set_title('Manifest Stats for Epoch {0}'.format(epoch))
@@ -35,6 +46,7 @@ def plot_epoch(path_csv: str, path_plot: str, ax_aggr=None,
 
 
 def run(path_in: str, path_out: str) -> None:
+    print(path_in)
     manifest_files = glob.glob(path_in + '/manifest.e*.csv')
     print('{0} files found'.format(len(manifest_files)))
     manifest_files.sort()

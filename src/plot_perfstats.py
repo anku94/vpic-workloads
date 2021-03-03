@@ -160,9 +160,29 @@ def plot_reneg_std(bincnts: Iterable[np.ndarray], fig_path: str) -> None:
     print('Plot saved: ', plot_out)
 
 
+def query_pivots(epoch: int, rank: int, all_pivots: List, all_counts: List):
+    pivots_epoch = all_pivots[epoch]
+    counts_epoch = all_counts[epoch]
+    deltas_epoch = np.diff(counts_epoch, n=1, axis=0)
+
+    print('Rank {:d}, Epoch {:d}'.format(rank, epoch))
+    rank_total = 0
+
+    for pivots, counts in zip(pivots_epoch, deltas_epoch):
+        print(pivots[rank], pivots[rank + 1], counts[rank])
+        rank_total += counts[rank]
+
+    print('Rank Total: ', rank_total)
+
+
+def run_query(perf_path: str, epoch: int, rank: int):
+    pivots, counts = read_all(perf_path)
+    query_pivots(epoch, rank, pivots, counts)
+
+
 def run(perf_path: str, path_out: str) -> None:
     pivots, counts = read_all(perf_path)
-    # plot_reneg_std(counts, path_out)
+    plot_reneg_std(counts, path_out)
     analyze_overlap(pivots, counts, path_out)
 
 
@@ -180,6 +200,13 @@ if __name__ == '__main__':
                         help='Path to perflog files', required=True)
     parser.add_argument('--output-path', '-o', type=str,
                         help='Destination for plotted graphs', required=False)
+    parser.add_argument('--query', '-q', action='store_true',
+                        help='Query counts for a rank/epoch pair',
+                        default=False)
+    parser.add_argument('--rank', '-r', type=int,
+                        help='Query counts for this rank', required=False)
+    parser.add_argument('--epoch', '-e', type=int,
+                        help='Query counts for this rank-epoch', required=False)
 
     options = parser.parse_args()
     if not options.input_path:
@@ -189,4 +216,7 @@ if __name__ == '__main__':
     if not options.output_path:
         options.output_path = options.input_path
 
-    run(options.input_path, options.output_path)
+    if options.query:
+        run_query(options.input_path, options.epoch, options.rank)
+    else:
+        run(options.input_path, options.output_path)

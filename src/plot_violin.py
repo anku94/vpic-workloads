@@ -14,7 +14,7 @@ if __name__ == '__main__':
         Expose reusable CARP plotting options
         ''',
         epilog='''
-        Dependecies: pyplot, numpy, plotly
+        Dependencies: pyplot, numpy, plotly
         '''
     )
 
