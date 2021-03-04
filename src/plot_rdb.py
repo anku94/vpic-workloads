@@ -27,7 +27,7 @@ def plot_epoch(path_csv: str, path_plot: str, ax_aggr=None,
         ax2.plot(data_x, data_olap,
                  label='Epoch {0}: Overlap Count'.format(epoch))
 
-    path_rtp_csv = re.sub('manifest\.e', 'rtp.olap.e', path_csv)
+    path_rtp_csv = re.sub('rdb\.olap', 'rtp.olap', path_csv)
     path_rtp_csv = Path(path_rtp_csv)
 
     if path_rtp_csv.exists():
@@ -36,7 +36,7 @@ def plot_epoch(path_csv: str, path_plot: str, ax_aggr=None,
         data_y = data['MatchMass'] * 100.0 / data['TotalMass']
         ax.plot(data_x, data_y, label='Epoch {0}: RTP Overlap %'.format(epoch))
 
-    path_mdb_csv = re.sub('manifest\.e', 'mdb.olap.e', path_csv)
+    path_mdb_csv = re.sub('rdb\.olap', 'mdb.olap', path_csv)
     path_mdb_csv = Path(path_mdb_csv)
 
     if path_mdb_csv.exists():
