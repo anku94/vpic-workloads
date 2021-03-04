@@ -36,6 +36,15 @@ def plot_epoch(path_csv: str, path_plot: str, ax_aggr=None,
         data_y = data['MatchMass'] * 100.0 / data['TotalMass']
         ax.plot(data_x, data_y, label='Epoch {0}: RTP Overlap %'.format(epoch))
 
+    path_mdb_csv = re.sub('manifest\.e', 'mdb.olap.e', path_csv)
+    path_mdb_csv = Path(path_mdb_csv)
+
+    if path_mdb_csv.exists():
+        data = pd.read_csv(path_mdb_csv)
+        data_x = data['Point']
+        data_y = data['MatchMass'] * 100.0 / data['TotalMass']
+        ax.plot(data_x, data_y, label='Epoch {0}: MDB Overlap %'.format(epoch))
+
     ax.legend()
     ax.set_xlabel('Attribute Range')
     ax.set_ylabel('Overlap Percent')

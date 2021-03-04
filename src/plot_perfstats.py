@@ -139,7 +139,7 @@ def analyze_overlap(all_pivots: List[np.ndarray],
         dump_csv(epoch, points, overlaps, total, csv_path)
 
         csv_path_mdb = path_fmt_mdb.format(out_path, epoch)
-        dump_csv(epoch, points, overlaps_mdb, total_mdb, csv_path)
+        dump_csv(epoch, points, overlaps_mdb, total_mdb, csv_path_mdb)
 
         print('Epoch {0} saved to ...{1}'.format(epoch, csv_path[-20:]))
 
