@@ -38,7 +38,7 @@ def analyze_output(path_in: str):
     path_plots = str(path_plots)
 
     run_perfstats(path_exp, path_plots)
-    run_rdb(path_exp, path_plots)
+    run_rdb(path_plots, path_plots)
 
 
 if __name__ == '__main__':

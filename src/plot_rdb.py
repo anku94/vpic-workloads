@@ -14,6 +14,9 @@ def plot_epoch(path_csv: str, path_plot: str, ax_aggr=None,
     epoch = data['Epoch'][0]
     data_x = data['Point']
     data_y = data['MatchMass'] * 100.0 / data['TotalMass']
+
+    print('Epoch {:d}, Max RDB: {:.3f}%'.format(epoch, max(data_y)))
+
     fig, ax = plt.subplots(1, 1)
     ax.plot(data_x, data_y, label='Epoch {0}: Overlap %'.format(epoch))
 
@@ -34,6 +37,7 @@ def plot_epoch(path_csv: str, path_plot: str, ax_aggr=None,
         data = pd.read_csv(path_rtp_csv)
         data_x = data['Point']
         data_y = data['MatchMass'] * 100.0 / data['TotalMass']
+        print('Epoch {:d}, Max RTP: {:.3f}%'.format(epoch, max(data_y)))
         ax.plot(data_x, data_y, label='Epoch {0}: RTP Overlap %'.format(epoch))
 
     path_mdb_csv = re.sub('rdb\.olap', 'mdb.olap', path_csv)
@@ -43,6 +47,7 @@ def plot_epoch(path_csv: str, path_plot: str, ax_aggr=None,
         data = pd.read_csv(path_mdb_csv)
         data_x = data['Point']
         data_y = data['MatchMass'] * 100.0 / data['TotalMass']
+        print('Epoch {:d}, Max MDB: {:.3f}%'.format(epoch, max(data_y)))
         ax.plot(data_x, data_y, label='Epoch {0}: MDB Overlap %'.format(epoch))
 
     ax.legend()
@@ -56,7 +61,7 @@ def plot_epoch(path_csv: str, path_plot: str, ax_aggr=None,
 
 def run(path_in: str, path_out: str) -> None:
     print(path_in)
-    manifest_files = glob.glob(path_in + '/manifest.e*.csv')
+    manifest_files = glob.glob(path_in + '/rdb.olap.e*.csv')
     print('{0} files found'.format(len(manifest_files)))
     manifest_files.sort()
 
