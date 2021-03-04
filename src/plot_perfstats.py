@@ -10,7 +10,7 @@ import pandas as pd
 
 import cache
 
-import IPython
+from mockdb_utils import get_manifest_overlaps as mockdb_overlaps
 
 PERFLOGFMT = '/vpic-perfstats.log.{0}'
 
@@ -120,16 +120,27 @@ def analyze_overlap(all_pivots: List[np.ndarray],
                     all_counts: List[np.ndarray],
                     out_path: str):
     path_fmt = '{0}/rtp.olap.e{1}.csv'
+    path_fmt_mdb = '{0}/mdb.olap.e{1}.csv'
     npts = 100
 
     for epoch in range(len(all_pivots)):
         points, overlaps, total = analyze_overlap_epoch(all_pivots[epoch],
                                                         all_counts[epoch], npts)
-        print('Epoch {:d}: Max Overlap: {:.2f}%'.format(
+        total_mdb, overlaps_mdb = mockdb_overlaps(
+            out_path + '/../plfs/manifests', epoch, points)
+
+        print('Epoch {:d}: Max RTP Overlap: {:.2f}%'.format(
             epoch, max(overlaps) * 100.0 / total))
+
+        print('Epoch {:d}: Max MDB Overlap: {:.2f}%'.format(
+            epoch, max(overlaps_mdb) * 100.0 / total))
 
         csv_path = path_fmt.format(out_path, epoch)
         dump_csv(epoch, points, overlaps, total, csv_path)
+
+        csv_path_mdb = path_fmt_mdb.format(out_path, epoch)
+        dump_csv(epoch, points, overlaps_mdb, total_mdb, csv_path)
+
         print('Epoch {0} saved to ...{1}'.format(epoch, csv_path[-20:]))
 
 
