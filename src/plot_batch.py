@@ -141,6 +141,7 @@ def run_olap_impl(all_jobdirs: str, plot_dir: str, key: str, op: str):
 
 def run_olap(all_dirs: str, dir_out: str):
     run_olap_impl(all_dirs, dir_out, 'rtp', op='max')
+    run_olap_impl(all_dirs, dir_out, 'rtp', op='avg')
     run_olap_impl(all_dirs, dir_out, 'mdb', op='max')
     run_olap_impl(all_dirs, dir_out, 'mdb', op='avg')
     run_olap_impl(all_dirs, dir_out, 'rdb', op='max')
