@@ -87,7 +87,7 @@ def plot_olap(jobdir: str, param: str, ax: object, key: str) -> None:
 
         if mass_total == 0:
             continue
-            
+
         mass_max = mass_max * 100.0 / mass_total;
         olap_data.append((epoch_idx, mass_max, mass_total))
     olap_data.sort()
@@ -128,7 +128,7 @@ def run(dir_in: str, dir_out: str):
     all_runs_glob = dir_in + '/*carp8*/**/carp*'
     all_dirs = glob.glob(all_runs_glob)
     all_dirs.sort()
-    # run_runtime(all_dirs, dir_out)
+    run_runtime(all_dirs, dir_out)
     run_olap(all_dirs, dir_out)
 
 
