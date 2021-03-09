@@ -42,6 +42,7 @@ def read_pivots(perf_path: str):
 
 
 def read_all(perf_path: str) -> Tuple[Iterable, Iterable]:
+    print('read_all: path {0}'.format(perf_path))
     aggr_bincnts = None
 
     cache_obj = cache.Cache()

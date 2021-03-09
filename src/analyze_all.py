@@ -1,6 +1,7 @@
-import sys
 import argparse
+import glob
 from pathlib import Path
+import sys
 
 from plot_perfstats import run as run_perfstats
 from plot_rdb import run as run_rdb
@@ -21,20 +22,28 @@ from plot_violin import run as run_violin
 """
 
 
+def find_dir(base_path: str, dirname: str) -> str:
+    glob_str = base_path + '/**/' + dirname
+    glob_res = glob.glob(glob_str)
+    if len(glob_res) > 0:
+        return glob_res[0]
+    else:
+        return ''
+
+
 def analyze_input(path_in: str, path_out: str):
     run_violin(path_in, path_out)
 
 
 def analyze_output(path_in: str):
-    path_exp = Path(path_in) / 'exp-info'
-    path_plfs = Path(path_in) / 'plfs' / 'particle'
-    path_plots = Path(path_in) / 'plots'
+    path_exp = find_dir(path_in, 'exp-info')
+    path_plfs = find_dir(path_in, 'plfs/particle')
+    path_plots = path_exp + '/../plots'
 
-    if not path_plots.exists():
-        path_plots.mkdir()
+    pathobj_plots = Path(path_plots)
+    if not pathobj_plots.exists():
+        pathobj_plots.mkdir()
 
-    path_exp = str(path_exp)
-    path_plfs = str(path_plfs)
     path_plots = str(path_plots)
 
     run_perfstats(path_exp, path_plots)
