@@ -1,10 +1,11 @@
+from typing import Tuple
+
 import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
 import glob
 import argparse
 import sys
-from pathlib import Path
 import re
 
 OVERRIDES = {
@@ -20,6 +21,20 @@ OVERRIDES = {
             }
         }
 }
+
+COLORS = {}
+COL_IDX = 0
+
+
+def get_color(v: str) -> Tuple:
+    global COLORS
+    global COL_IDX
+
+    if v not in COLORS:
+        COLORS[v] = plt.cm.tab10(COL_IDX % 10)
+        COL_IDX += 1
+
+    return COLORS[v]
 
 
 def override_exists_impl(obj, props):
@@ -65,7 +80,8 @@ def get_file_params(fpath: str):
 def plot_runtime(jobdir: str, param: str, ax: object) -> None:
     runtime_csv = jobdir + '/plots/runtime.csv'
     runtime = pd.read_csv(runtime_csv, header=None)
-    ax.plot(range(len(runtime[0])), runtime[0], label=param)
+    ax.plot(range(len(runtime[0])), runtime[0], label=param,
+            color=get_color(param))
 
 
 def run_runtime(all_jobdirs: str, plot_dir: str):
@@ -78,6 +94,7 @@ def run_runtime(all_jobdirs: str, plot_dir: str):
         plot_runtime(dir, param, ax)
 
     ax.legend()
+    ax.set_ylim([0, ax.get_ylim()[1]])
     ax.set_xlabel('Epoch Index')
     ax.set_ylabel('Epoch I/O time (seconds)')
     ax.set_title('Runtime vs RTP Interval')
@@ -90,7 +107,7 @@ def plot_olap(jobdir: str, param: str, ax: object, key: str, op: str) -> None:
         data = override
         data_x = list(range(len(data)))
         data_y = data
-        ax.plot(data_x, data_y, label=param)
+        ax.plot(data_x, data_y, label=param, color=get_color(param))
         return
 
     glob_template = '/plots/{0}.olap.*csv'.format(key)
@@ -118,7 +135,7 @@ def plot_olap(jobdir: str, param: str, ax: object, key: str, op: str) -> None:
 
     data_x = list(zip(*olap_data))[0]
     data_y = list(zip(*olap_data))[1]
-    ax.plot(data_x, data_y, label=param)
+    ax.plot(data_x, data_y, label=param, color=get_color(param))
 
 
 def run_olap_impl(all_jobdirs: str, plot_dir: str, key: str, op: str):
@@ -134,8 +151,9 @@ def run_olap_impl(all_jobdirs: str, plot_dir: str, key: str, op: str):
     ax.set_xlabel('Epoch Index')
     ax.set_ylabel('Epoch Overlap (Percent)')
     ax.set_title(
-        'Max {0} Overlap vs RTP Interval (Op: {1})'.format(key.upper(), op))
+        '{1} {0} Overlap vs RTP Interval'.format(key.upper(), op.title()))
     plot_path = '{0}/{1}.{2}.olap.pdf'.format(plot_dir, key, op)
+    print(plot_path)
     fig.savefig(plot_path, dpi=300)
 
 
