@@ -1,5 +1,6 @@
 from typing import Tuple
 
+import datetime
 import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
@@ -82,6 +83,42 @@ def plot_runtime(jobdir: str, param: str, ax: object) -> None:
     runtime = pd.read_csv(runtime_csv, header=None)
     ax.plot(range(len(runtime[0])), runtime[0], label=param,
             color=get_color(param))
+
+
+def ts_delta(ts1: str, ts2: str) -> int:
+    def parse_ts(ts: str) -> datetime:
+        ts = ts[ts.index(':'):].strip(': ')
+        e = datetime.datetime.strptime(ts, '%a %b %d %H:%M:%S %Z %Y')
+        return e
+    e1 = parse_ts(ts1)
+    e2 = parse_ts(ts2)
+    tsec = (e2 - e1).seconds
+    return tsec
+
+
+def run_runtime_log(all_jobdirs: str, plot_dir: str):
+    PKEY = 0
+    fig, ax = plt.subplots(1, 1)
+    data_x = []
+    data_y = []
+
+    for dir in all_jobdirs:
+        runtime_fpath = glob.glob(dir + '/../runtime')[0]
+        data = open(runtime_fpath, 'r').read().split('\n')
+        start_ts, end_ts = data[0], data[1]
+        delta = ts_delta(start_ts, end_ts)
+        params = get_file_params(dir)
+        param = params[PKEY]
+        print(param, delta)
+        data_x.append(param)
+        data_y.append(delta)
+
+    ax.plot(data_x, data_y)
+    ax.set_ylim([0, ax.get_ylim()[1]])
+    ax.set_xlabel('RTP Interval')
+    ax.set_ylabel('I/O time (seconds)')
+    ax.set_title('Runtime vs RTP Interval')
+    fig.savefig(plot_dir + '/runtime.pdf', dpi=300)
 
 
 def run_runtime(all_jobdirs: str, plot_dir: str):
