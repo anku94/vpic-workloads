@@ -7,6 +7,8 @@ import sys
 from pathlib import Path
 import re
 
+from common import abbrv_path
+
 
 def plot_epoch(path_csv: str, path_plot: str, ax_aggr=None,
                plot_olap=False) -> None:
@@ -57,21 +59,26 @@ def plot_epoch(path_csv: str, path_plot: str, ax_aggr=None,
 
     # fig.show()
     fig.savefig(path_plot, dpi=300)
+    #  print('Plot saved: ', abbrv_path(path_plot))
 
 
 def run(path_in: str, path_out: str) -> None:
     print(path_in)
+    desc = """
+    [plot_rdb] parsing RDB to compute RDB overlaps
+    """
+    print(desc)
     manifest_files = glob.glob(path_in + '/rdb.olap.e*.csv')
-    print('{0} files found'.format(len(manifest_files)))
+    print('{0} epoch files found\n'.format(len(manifest_files)))
     manifest_files.sort()
 
     fig_aggr, ax_aggr = plt.subplots(1, 1)
 
     for fin in manifest_files:
-        print('Plotting {0}'.format(fin))
         fout = re.sub('csv$', 'pdf', Path(fin).name)
         fout = Path(path_out) / fout
         plot_epoch(fin, fout, ax_aggr=ax_aggr)
+        print('Plot saved: {0} ==> {1}\n'.format(abbrv_path(fin), abbrv_path(fout)))
 
     ax_aggr.set_xlabel('Attribute Range')
     ax_aggr.set_ylabel('Overlap Percent')

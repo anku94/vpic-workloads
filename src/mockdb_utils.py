@@ -8,6 +8,7 @@ import sys
 
 import matplotlib.pyplot as plt
 
+from common import abbrv_path
 
 def read_manifest_file(data_path: str, rank: int = 0):
     f = open(data_path).read().splitlines()
@@ -99,11 +100,13 @@ def get_manifest_overlaps(data_path: str, epoch: int,
                           probe_points: List[float]) -> Tuple[int, List[int]]:
     mf_items = read_entire_manifest(data_path, epoch)
     _, _, item_sum = get_stats(mf_items)
-    print('Mock Manifest (path: ... {0}): {1}M items'.format(data_path[-20:],
-                                                             int(
-                                                                 item_sum / 1e6)))
+
+    print('\nReading MockDB Manifest (path: ... {0}): {1}M items'.format(
+        abbrv_path(data_path),
+        int(item_sum / 1e6)))
+
     overlap_stats = list(
-        map(lambda x: get_overlapping_count(mf_items, x)[1], probe_points))
+            map(lambda x: get_overlapping_count(mf_items, x)[1], probe_points))
     return item_sum, overlap_stats
 
 

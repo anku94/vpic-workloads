@@ -10,9 +10,13 @@ import pandas as pd
 
 import cache
 
+from common import abbrv_path
 from mockdb_utils import get_manifest_overlaps as mockdb_overlaps
 
 PERFLOGFMT = '/vpic-perfstats.log.{0}'
+
+global USE_CACHE
+USE_CACHE = False
 
 
 def read_bincnt(perf_path: str) -> np.ndarray:
@@ -36,19 +40,25 @@ def read_pivots(perf_path: str):
     col = all_pivots[col_val]
     np_arr = np.stack(
         col.map(lambda x: np.array(x.strip().split(' '), dtype=float)))
-
-    print(np_arr.shape)
     return np_arr
 
 
 def read_all(perf_path: str) -> Tuple[Iterable, Iterable]:
-    print('read_all: path {0}'.format(perf_path))
+    global USE_CACHE
+
+    print('Reading perflogs from: {0}'.format(abbrv_path(perf_path)))
     aggr_bincnts = None
 
     cache_obj = cache.Cache()
+    cache_miss = True
     if cache_obj.exists(perf_path):
-        aggr_bincnts = cache_obj.get(perf_path)
-    else:
+        if not USE_CACHE:
+            print('Cache Entry available, SKIPPING')
+        else:
+            aggr_bincnts = cache_obj.get(perf_path)
+            print('Cache entry LOADED')
+            cache_miss = False
+    if cache_miss:
         all_fpaths = sorted(glob.glob(perf_path + PERFLOGFMT.format('*')))
         # all_fpaths = all_fpaths[:8]
 
@@ -68,8 +78,10 @@ def read_all(perf_path: str) -> Tuple[Iterable, Iterable]:
     aggr_pivots = read_pivots(perf_path)
     epoch_pivots = np.split(aggr_pivots, epoch_idx)
 
-    print('Total Epochs: ', len(epoch_bincnts))
-    print('Total Mass: ', sum(aggr_bincnts[-1]))
+    print('RTP data read from perflogs')
+    print('RTP Total Epochs: ', len(epoch_bincnts))
+    total_mass = sum(aggr_bincnts[-1])
+    print('RTP Total Mass: ',  f'{total_mass:,}')
 
     return epoch_pivots, epoch_bincnts
 
@@ -130,6 +142,7 @@ def analyze_overlap(all_pivots: List[np.ndarray],
         total_mdb, overlaps_mdb = mockdb_overlaps(
             out_path + '/../plfs/manifests', epoch, points)
 
+        print('')
         print('Epoch {:d}: Max RTP Overlap: {:.2f}%'.format(
             epoch, max(overlaps) * 100.0 / total))
 
@@ -142,7 +155,8 @@ def analyze_overlap(all_pivots: List[np.ndarray],
         csv_path_mdb = path_fmt_mdb.format(out_path, epoch)
         dump_csv(epoch, points, overlaps_mdb, total_mdb, csv_path_mdb)
 
-        print('Epoch {0} saved to ...{1}'.format(epoch, csv_path[-20:]))
+        print('Epoch {0} Written: {1}'.format(epoch, abbrv_path(csv_path)))
+        print('Epoch {0} Written: {1}'.format(epoch, abbrv_path(csv_path_mdb)))
 
 
 def plot_reneg_std(bincnts: Iterable[np.ndarray], fig_path: str) -> None:
@@ -169,7 +183,7 @@ def plot_reneg_std(bincnts: Iterable[np.ndarray], fig_path: str) -> None:
 
     plot_out = fig_path + '/reneg_vs_std.pdf'
     # fig.savefig(plot_out, dpi=300)
-    print('Plot saved: ', plot_out)
+    print('Plot saved: ', abbrv_path(plot_out))
 
 
 def query_pivots(epoch: int, rank: int, all_pivots: List, all_counts: List):
@@ -193,6 +207,10 @@ def run_query(perf_path: str, epoch: int, rank: int):
 
 
 def run(perf_path: str, path_out: str) -> None:
+    desc = """
+    [plot_perfstats] parsing perfstat logs to compute RTP/MDB overlaps
+    """
+    print(desc)
     pivots, counts = read_all(perf_path)
     plot_reneg_std(counts, path_out)
     analyze_overlap(pivots, counts, path_out)
@@ -219,11 +237,16 @@ if __name__ == '__main__':
                         help='Query counts for this rank', required=False)
     parser.add_argument('--epoch', '-e', type=int,
                         help='Query counts for this rank-epoch', required=False)
+    parser.add_argument('--cache', '-c', action='store_true',
+                        help='Cache used if enabled', required=False)
 
     options = parser.parse_args()
     if not options.input_path:
         parser.print_help()
         sys.exit(0)
+
+    if parser.cache == True:
+        USE_CACHE = True
 
     if not options.output_path:
         options.output_path = options.input_path
