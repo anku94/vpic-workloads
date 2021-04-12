@@ -2,6 +2,7 @@ import glob
 import re
 from typing import List, Tuple
 
+import multiprocessing
 import numpy as np
 import pandas as pd
 import sys
@@ -68,6 +69,11 @@ def get_overlapping_count(manifest, point):
     return overlapping_ssts, overlapping_mass
 
 
+def get_overlapping_count_parutil(point):
+    global mf_items
+    return get_overlapping_count(mf_items, point)
+
+
 def do_ranges_overlap(a1, b1, a2, b2):
     if a2 <= a1 <= b2:
         return True
@@ -99,6 +105,9 @@ def get_overlapping_range_count(manifest, p, q):
 def get_manifest_overlaps(data_path: str, epoch: int,
                           probe_points: List[float]) -> Tuple[int, List[int]]:
     mf_items = read_entire_manifest(data_path, epoch)
+    if len(mf_items) == 0:
+        return 0, []
+
     _, _, item_sum = get_stats(mf_items)
 
     print('\nReading MockDB Manifest (path: ... {0}): {1}M items'.format(
@@ -110,5 +119,71 @@ def get_manifest_overlaps(data_path: str, epoch: int,
     return item_sum, overlap_stats
 
 
+def worker_initialize(manifest):
+    global mf_items
+    #  mf_items = read_entire_manifest(data_path, epoch)
+    mf_items = manifest
+
+
+def gen_probe_points(pmin: float, pmax: float) -> List[float]:
+    cutoffs = [
+        [0, 0.1],
+        [5, 0.5],
+        [10, 1.0],
+        [20, 2.0],
+        [40, 4.0],
+        [80, 8.0]
+    ]
+
+    cutoffs = sorted(cutoffs, reverse=True)
+    all_points = np.array([], dtype=np.int64)
+
+    for clim, cdel in cutoffs:
+        if pmax > clim:
+            cur_points = np.arange(clim, pmax, cdel)
+            all_points = np.concatenate([all_points, cur_points])
+            pmax = clim
+
+    all_points = sorted(all_points)
+    return all_points
+
+
+def gen_overlaps(data_path: str) -> None:
+    epoch = 0
+
+    while True:
+        mf_items = read_entire_manifest(data_path, epoch)
+        if len(mf_items) == 0:
+            break
+
+        probe_min = min(mf_items, key = lambda x: x[0])[0]
+        probe_max = max(mf_items, key = lambda x: x[1])[1]
+        probe_points = gen_probe_points(probe_min, probe_max)
+
+        _, _, item_sum = get_stats(mf_items)
+
+        print('\nReading MockDB Manifest (path: ... {0}): {1}M items'.format(
+            abbrv_path(data_path),
+            int(item_sum / 1e6)))
+
+        overlap_stats = None
+
+        with multiprocessing.Pool(16,
+                                  worker_initialize, 
+                                  [mf_items]) as pool:
+            point_overlaps = pool.map(get_overlapping_count_parutil, 
+                                      probe_points)
+            point_overlaps = map(lambda x: x[1], point_overlaps)
+            overlap_stats = np.fromiter(point_overlaps, dtype=np.int64)
+
+        overlap_pct = overlap_stats / item_sum * 100.0
+        overlap_max = max(overlap_pct)
+        overlap_fmt = ['{:.2f}'.format(x) for x in overlap_pct]
+        print('Epoch {}, MDB Max Overlap: {:.2f}%, Avg Overlap: {:.2f}% ({} points)'.format(
+            epoch, max(overlap_pct), np.mean(overlap_pct), len(probe_points)))
+        epoch += 1
+    pass
+
+
 if __name__ == '__main__':
-    print(get_manifest_overlaps('../rundata/manifests', 0, [0.5, 1, 1.5, 2]))
+    gen_overlaps('.')
