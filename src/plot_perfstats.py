@@ -11,7 +11,7 @@ import pandas as pd
 import cache
 
 from common import abbrv_path
-from mockdb_utils import get_manifest_overlaps as mockdb_overlaps
+from mockdb_utils import gen_overlaps as gen_mdb_overlaps
 
 PERFLOGFMT = '/vpic-perfstats.log.{0}'
 
@@ -19,12 +19,23 @@ global USE_CACHE
 USE_CACHE = False
 
 
+def read_epoch_counts(perf_path: str) -> np.ndarray:
+    data = pd.read_csv(perf_path)
+    col_type = data.columns[1]
+    col_val = data.columns[2]
+    # all_pivots = data[data[col_type] == 'RENEG_AGGR_PIVOTS']
+    all_bincnts = data[data[col_type].str.startswith('RENEG_BINCNT', na=False)]
+    all_epochs = all_bincnts['Stat Type'].map(lambda x: int(x.split('_')[-1][1:]))
+    epoch_counts = all_epochs.groupby(all_epochs).apply(lambda x: x.shape[0])
+
+    return epoch_counts.cumsum()
+
 def read_bincnt(perf_path: str) -> np.ndarray:
     data = pd.read_csv(perf_path)
     col_type = data.columns[1]
     col_val = data.columns[2]
     # all_pivots = data[data[col_type] == 'RENEG_AGGR_PIVOTS']
-    all_bincnts = data[data[col_type] == 'RENEG_BINCNT']
+    all_bincnts = data[data[col_type].str.startswith('RENEG_BINCNT', na=False)]
     col = all_bincnts[col_val]
     np_arr = np.stack(
         col.map(lambda x: np.array(x.strip().split(' '), dtype=int)))
@@ -48,6 +59,7 @@ def read_all(perf_path: str) -> Tuple[Iterable, Iterable]:
 
     print('Reading perflogs from: {0}'.format(abbrv_path(perf_path)))
     aggr_bincnts = None
+    epoch_counts = None
 
     cache_obj = cache.Cache()
     cache_miss = True
@@ -60,23 +72,30 @@ def read_all(perf_path: str) -> Tuple[Iterable, Iterable]:
             cache_miss = False
     if cache_miss:
         all_fpaths = sorted(glob.glob(perf_path + PERFLOGFMT.format('*')))
-        # all_fpaths = all_fpaths[:8]
+        #  all_fpaths = all_fpaths[:8]
 
         with multiprocessing.Pool(8) as pool:
             parsed_fpaths = pool.map(read_bincnt, all_fpaths)
+        #  parsed_fpaths = map(read_bincnt, all_fpaths)
 
         aggr_bincnts = sum(parsed_fpaths)
         cache_obj.put(perf_path, aggr_bincnts)
+        epoch_counts = read_epoch_counts(all_fpaths[0])
+        print(epoch_counts)
 
-    row_sum = aggr_bincnts.sum(1)
-    epoch_idx = np.argwhere(row_sum < 100).flatten()
-    assert (epoch_idx[0] == 0)
-    epoch_idx = np.delete(epoch_idx, 0)
+    #  row_sum = aggr_bincnts.sum(1)
+    #  epoch_idx = np.argwhere(row_sum < 100).flatten()
+    #  assert (epoch_idx[0] == 0)
+    #  epoch_idx = np.delete(epoch_idx, 0)
+    # first one needn't split
+    epoch_counts = epoch_counts[:-1]
 
-    epoch_bincnts = np.split(aggr_bincnts, epoch_idx)
+
+    #  from IPython import embed; embed()
+    epoch_bincnts = np.split(aggr_bincnts, epoch_counts)
 
     aggr_pivots = read_pivots(perf_path)
-    epoch_pivots = np.split(aggr_pivots, epoch_idx)
+    epoch_pivots = np.split(aggr_pivots, epoch_counts)
 
     print('RTP data read from perflogs')
     print('RTP Total Epochs: ', len(epoch_bincnts))
@@ -129,7 +148,25 @@ def dump_csv(epoch: int, points: np.ndarray, overlaps: List, total: np.int64,
     return
 
 
-def analyze_overlap(all_pivots: List[np.ndarray],
+def compute_mdb_overlap(out_path: str):
+    data_path = out_path + '/../plfs/manifests'
+    path_fmt_mdb = '{0}/mdb.olap.e{1}.csv'
+
+    mdb_epoch_overlaps = gen_mdb_overlaps(data_path)
+
+    for epoch, data in enumerate(mdb_epoch_overlaps):
+        points, total, overlaps = data
+        print('Epoch {:d}: Max MDB Overlap: {:.2f}%'.format(
+            epoch, max(overlaps) * 100.0 / total))
+
+        csv_path_mdb = path_fmt_mdb.format(out_path, epoch)
+        dump_csv(epoch, points, overlaps, total, csv_path_mdb)
+
+        print('Epoch {0} Written: {1}'.format(epoch, abbrv_path(csv_path_mdb)))
+
+
+
+def compute_rtp_overlap(all_pivots: List[np.ndarray],
                     all_counts: List[np.ndarray],
                     out_path: str):
     path_fmt = '{0}/rtp.olap.e{1}.csv'
@@ -139,24 +176,13 @@ def analyze_overlap(all_pivots: List[np.ndarray],
     for epoch in range(len(all_pivots)):
         points, overlaps, total = analyze_overlap_epoch(all_pivots[epoch],
                                                         all_counts[epoch], npts)
-        total_mdb, overlaps_mdb = mockdb_overlaps(
-            out_path + '/../plfs/manifests', epoch, points)
-
-        print('')
         print('Epoch {:d}: Max RTP Overlap: {:.2f}%'.format(
             epoch, max(overlaps) * 100.0 / total))
-
-        print('Epoch {:d}: Max MDB Overlap: {:.2f}%'.format(
-            epoch, max(overlaps_mdb) * 100.0 / total))
 
         csv_path = path_fmt.format(out_path, epoch)
         dump_csv(epoch, points, overlaps, total, csv_path)
 
-        csv_path_mdb = path_fmt_mdb.format(out_path, epoch)
-        dump_csv(epoch, points, overlaps_mdb, total_mdb, csv_path_mdb)
-
         print('Epoch {0} Written: {1}'.format(epoch, abbrv_path(csv_path)))
-        print('Epoch {0} Written: {1}'.format(epoch, abbrv_path(csv_path_mdb)))
 
 
 def plot_reneg_std(bincnts: Iterable[np.ndarray], fig_path: str) -> None:
@@ -213,7 +239,10 @@ def run(perf_path: str, path_out: str) -> None:
     print(desc)
     pivots, counts = read_all(perf_path)
     plot_reneg_std(counts, path_out)
-    analyze_overlap(pivots, counts, path_out)
+    compute_mdb_overlap(path_out)
+    # RTP overlap isn't meaningful in sparse reneg mode
+    # TODO: fix if want to run
+    #  compute_rtp_overlap(pivots, counts, path_out)
 
 
 if __name__ == '__main__':
@@ -237,15 +266,15 @@ if __name__ == '__main__':
                         help='Query counts for this rank', required=False)
     parser.add_argument('--epoch', '-e', type=int,
                         help='Query counts for this rank-epoch', required=False)
-    parser.add_argument('--cache', '-c', action='store_true',
-                        help='Cache used if enabled', required=False)
+    parser.add_argument('--cache', action='store_true',
+                        help='Cache used if enabled')
 
     options = parser.parse_args()
     if not options.input_path:
         parser.print_help()
         sys.exit(0)
 
-    if parser.cache == True:
+    if options.cache == True:
         USE_CACHE = True
 
     if not options.output_path:

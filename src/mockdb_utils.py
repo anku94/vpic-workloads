@@ -9,7 +9,7 @@ import sys
 
 import matplotlib.pyplot as plt
 
-from common import abbrv_path
+from common import abbrv_path, gen_probe_points
 
 def read_manifest_file(data_path: str, rank: int = 0):
     f = open(data_path).read().splitlines()
@@ -125,31 +125,10 @@ def worker_initialize(manifest):
     mf_items = manifest
 
 
-def gen_probe_points(pmin: float, pmax: float) -> List[float]:
-    cutoffs = [
-        [0, 0.1],
-        [5, 0.5],
-        [10, 1.0],
-        [20, 2.0],
-        [40, 4.0],
-        [80, 8.0]
-    ]
-
-    cutoffs = sorted(cutoffs, reverse=True)
-    all_points = np.array([], dtype=np.int64)
-
-    for clim, cdel in cutoffs:
-        if pmax > clim:
-            cur_points = np.arange(clim, pmax, cdel)
-            all_points = np.concatenate([all_points, cur_points])
-            pmax = clim
-
-    all_points = sorted(all_points)
-    return all_points
-
-
-def gen_overlaps(data_path: str) -> None:
+def gen_overlaps(data_path: str) -> Tuple[List, int, List]:
     epoch = 0
+
+    all_data = []
 
     while True:
         mf_items = read_entire_manifest(data_path, epoch)
@@ -162,9 +141,10 @@ def gen_overlaps(data_path: str) -> None:
 
         _, _, item_sum = get_stats(mf_items)
 
-        print('\nReading MockDB Manifest (path: ... {0}): {1}M items'.format(
+        print('\nReading MockDB Manifest E{2}, (path: ... {0}): {1}M items'.format(
             abbrv_path(data_path),
-            int(item_sum / 1e6)))
+            int(item_sum / 1e6), 
+              epoch))
 
         overlap_stats = None
 
@@ -179,10 +159,14 @@ def gen_overlaps(data_path: str) -> None:
         overlap_pct = overlap_stats / item_sum * 100.0
         overlap_max = max(overlap_pct)
         overlap_fmt = ['{:.2f}'.format(x) for x in overlap_pct]
-        print('Epoch {}, MDB Max Overlap: {:.2f}%, Avg Overlap: {:.2f}% ({} points)'.format(
-            epoch, max(overlap_pct), np.mean(overlap_pct), len(probe_points)))
+        #  print('Epoch {}, MDB Max Overlap: {:.2f}%, Avg Overlap: {:.2f}% ({} points)'.format(
+            #  epoch, max(overlap_pct), np.mean(overlap_pct), len(probe_points)))
         epoch += 1
-    pass
+
+        epoch_data = [probe_points, item_sum, overlap_stats]
+        all_data.append(epoch_data)
+
+    return all_data
 
 
 if __name__ == '__main__':
