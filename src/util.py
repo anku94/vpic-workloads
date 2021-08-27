@@ -160,21 +160,47 @@ class VPICReader:
                      ("%s.%s.%s" % (ftype, ts_str, rank))
         return rank_fname
 
-    def sample_global(self, timestep: int, ftype: str = 'eparticle') -> List[
-        str]:
+    def sample_global(self, timestep: int,
+                      ftype: str = 'eparticle', load_cached=False) -> np.array(
+        float):
         num_ranks = self.get_num_ranks()
         rank_paths = [self.rank_fpath(timestep, rank, ftype) for rank in
                       range(num_ranks)]
-        INTVL_COUNT = 50
-        INTVL_SAMPLES =  50
+        INTVL_COUNT = 100
+        INTVL_SAMPLES = 100
         rpath_args = [(x, INTVL_COUNT, INTVL_SAMPLES) for x in rank_paths]
         print(rank_paths)
 
         data = None
+        if load_cached:
+            data = self._load_sample(timestep)
+            if len(data) > 0:
+                return data
+
         with Pool(processes=64) as pool:
             data = pool.map(self.sample_a_rank_unpack, rpath_args)
 
         data = functools.reduce(operator.iconcat, data, [])
+        data = np.array(data)
+        self._save_sample(timestep, data)
+
+        return data
+
+    def _save_sample(self, timestep: int, data: np.ndarray) -> None:
+        ts_str = self.timesteps[timestep]
+        fpath = ts_str / "sample"
+        data = np.array(data)
+        np.save(fpath, data)
+
+    def _load_sample(self, timestep: int) -> np.ndarray:
+        ts_str = self.timesteps[timestep]
+        fpath = ts_str / "sample.npy"
+
+        try:
+            data = np.load(fpath)
+        except IOError as e:
+            data = np.array([], dtype=float)
+
         return data
 
 

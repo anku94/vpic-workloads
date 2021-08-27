@@ -192,7 +192,8 @@ def generate_distribution_violin_alt(data_path: str, fig_path: str,
     timestamps = [vpic_reader.get_ts(i) for i in range(vpic_reader.get_num_ts())]
 
     for tsidx in range(0, timesteps):
-        data = vpic_reader.sample_global(tsidx)
+        data = vpic_reader.sample_global(tsidx, load_cached=True)
+
         print('Read: ', len(data))
         plotted_data = data
 
