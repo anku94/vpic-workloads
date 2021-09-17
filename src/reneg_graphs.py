@@ -10,6 +10,8 @@ from typing import List, Tuple
 
 import plotly.graph_objects as go
 import plotly.express as px
+import plotly.io as pio
+from plotly.subplots import make_subplots
 
 
 def log_tailed(x, cutoff):
@@ -176,10 +178,17 @@ def gen_annotation(all_shapes, all_annotations, label, x, ymin, ymax):
     all_shapes.extend(shapes)
 
 
+def data_tmp():
+    data = np.random.normal(1, 0.3, 1000)
+    data2 = np.random.normal(30, 15, 200)
+    data = np.concatenate((data, data2), axis=0)
+    data = np.abs(data)
+    return data
+
+
 def generate_distribution_violin_alt(data_path: str, fig_path: str,
                                      num_ranks: int = None,
                                      bw_value: float = 0.03):
-    #  num_ranks = 4
     vpic_reader = VPICReader(data_path, num_ranks=num_ranks)
     ranks = vpic_reader.get_num_ranks()
     timesteps = vpic_reader.get_num_ts()
@@ -189,10 +198,17 @@ def generate_distribution_violin_alt(data_path: str, fig_path: str,
     all_shapes = []
     all_annotations = []
 
-    timestamps = [vpic_reader.get_ts(i) for i in range(vpic_reader.get_num_ts())]
+    timestamps = [vpic_reader.get_ts(i) for i in
+                  range(vpic_reader.get_num_ts())]
+
+    fig = make_subplots(rows=2, cols=1, specs=[[{}], [{}]], shared_xaxes=True,
+                        vertical_spacing=0.02)
+
+    tail_masses = []
 
     for tsidx in range(0, timesteps):
-        data = vpic_reader.sample_global(tsidx, load_cached=True)
+        # data = vpic_reader.sample_global(tsidx, load_cached=True)
+        data = vpic_reader.sample_hist(tsidx)
 
         print('Read: ', len(data))
         plotted_data = data
@@ -208,6 +224,7 @@ def generate_distribution_violin_alt(data_path: str, fig_path: str,
         percent_head = head_data * 100.0 / len(plotted_data)
         percent_head_2 = head_data_2 * 100.0 / len(plotted_data)
         percent_tail = tail_data * 100.0 / len(plotted_data)
+        tail_masses.append(100 - percent_head_2)
 
         print('TS {0}, < {1}: {2:.2f}'.format(tsidx, head_cutoff, percent_head))
         print('TS {0}, < {1}: {2:.2f}'.format(tsidx, head_cutoff_2,
@@ -227,19 +244,28 @@ def generate_distribution_violin_alt(data_path: str, fig_path: str,
             bandwidth=bw_value,
             scalemode='width',
             line=dict(
-                width=1
+                width=4
             )
         )
 
         fig.add_trace(violin_data)
         label = 'Tail Mass: <br />  {0:.1f}%'.format(100 - percent_head_2)
         print(label)
-        gen_annotation(all_shapes, all_annotations, label, tsidx + 0.1, 4,
-                       max(plotted_data))
+        # gen_annotation(all_shapes, all_annotations, label, tsidx + 0.1, 4,
+        #                max(plotted_data))
 
     fig.update_traces(width=1.8)
     fig.update_layout(
-        xaxis=dict(
+        # xaxis=dict(
+        #     title=dict(
+        #         text="Simulation Time (s)",
+        #     ),
+        #     ticktext=timestamps,
+        #     tickvals=[x + 0.2 for x in range(timesteps)],
+        #     color='#000',
+        #     linecolor='#444',
+        # ),
+        xaxis2=dict(
             title=dict(
                 text="Simulation Time (s)",
             ),
@@ -247,6 +273,9 @@ def generate_distribution_violin_alt(data_path: str, fig_path: str,
             tickvals=[x + 0.2 for x in range(timesteps)],
             color='#000',
             linecolor='#444',
+            range=[-0.5, timesteps + 0.3],
+            showgrid=True,
+            gridcolor='#777'
         ),
         yaxis=dict(
             title=dict(
@@ -258,8 +287,149 @@ def generate_distribution_violin_alt(data_path: str, fig_path: str,
                       for x in range(0, 18, 2)],
             linecolor='#444',
             showgrid=True,
-            gridcolor='#ddd'
+            gridcolor='#777',
+            range=[-0.3, 18]
         ),
+        yaxis2=dict(
+            title=dict(
+                text='Tail Mass (%)',
+            ),
+            linecolor='#777',
+            showgrid=True,
+            gridcolor='#aaa',
+            range=[0, 32]
+        ),
+        plot_bgcolor='#fff',
+        shapes=all_shapes,
+        annotations=all_annotations,
+        showlegend=False,
+        legend=dict(x=0.87, y=1),
+        font=dict(size=38)
+    )
+
+    x2 = [x + 0.2 for x in range(timesteps)]
+    y2 = tail_masses
+
+    fig.add_trace(
+        go.Scatter(x=x2, y=y2, marker_size=18, line_width=4,
+                   marker_color='#4C78A8'),
+        row=2, col=1
+    )
+
+    fig.update_xaxes(zeroline=False)
+    fig.update_yaxes(zeroline=False)
+
+    fig.show()
+    # fig.write_image(
+    #     '../vis/poster/vpic32.distrib.violin.alt.{0}.pdf'.format(bw_value))
+    # fig.write_image(fig_path)
+    # pio.write_image(fig, fig_path, width=2048, height=1536)
+
+
+def generate_distribution_violin_alt_2(data_path: str, fig_path: str,
+                                     num_ranks: int = None,
+                                     bw_value: float = 0.03):
+    vpic_reader = VPICReader(data_path, num_ranks=num_ranks)
+    ranks = vpic_reader.get_num_ranks()
+    timesteps = vpic_reader.get_num_ts()
+    print('[VPICReader] Ranks: {0}, ts: {1}'.format(ranks, timesteps))
+    fig = go.Figure()
+
+    all_shapes = []
+    all_annotations = []
+
+    timestamps = [vpic_reader.get_ts(i) for i in
+                  range(vpic_reader.get_num_ts())]
+
+    # fig = make_subplots(rows=2, cols=1, specs=[[{}], [{}]], shared_xaxes=True,
+    #                     vertical_spacing=0.02)
+
+    tail_masses = []
+
+    for tsidx in range(0, timesteps):
+    # for tsidx in range(0, 3):
+        # data = vpic_reader.sample_global(tsidx, load_cached=True)
+        data = vpic_reader.sample_hist(tsidx)
+
+        print('Read: ', len(data))
+        plotted_data = data
+
+        head_cutoff = 0.5
+        head_cutoff_2 = 4
+        tail_cutoff = 10
+
+        head_data = len([i for i in plotted_data if i < head_cutoff])
+        head_data_2 = len([i for i in plotted_data if i < head_cutoff_2])
+        tail_data = len([i for i in plotted_data if i > tail_cutoff])
+
+        percent_head = head_data * 100.0 / len(plotted_data)
+        percent_head_2 = head_data_2 * 100.0 / len(plotted_data)
+        percent_tail = tail_data * 100.0 / len(plotted_data)
+        tail_masses.append(100 - percent_head_2)
+
+        print('TS {0}, < {1}: {2:.2f}'.format(tsidx, head_cutoff, percent_head))
+        print('TS {0}, < {1}: {2:.2f}'.format(tsidx, head_cutoff_2,
+                                              percent_head_2))
+        print('TS {0}, > {1}: {2:.2f}'.format(tsidx, tail_cutoff, percent_tail))
+
+        plotted_data = list(map(lambda x: log_tailed(x, 0.001), plotted_data))
+
+        ts_name = 'Timestep {0}'.format(vpic_reader.get_ts(tsidx), )
+
+        violin_data = go.Violin(
+            y=plotted_data,
+            box_visible=False, meanline_visible=False,
+            name=ts_name,
+            side='positive',
+            points=False,
+            bandwidth=bw_value,
+            scalemode='width',
+            line=dict(
+                width=4
+            )
+        )
+
+        fig.add_trace(violin_data)
+        label = 'Tail Mass: <br />  {0:.1f}%'.format(100 - percent_head_2)
+        print(label)
+        # gen_annotation(all_shapes, all_annotations, label, tsidx + 0.1, 4,
+        #                max(plotted_data))
+
+    fig.update_traces(width=1.8)
+    fig.update_layout(
+        xaxis=dict(
+            title=dict(
+                text="Simulation Time (s)",
+            ),
+            ticktext=timestamps,
+            tickvals=[x + 0.2 for x in range(timesteps)],
+            color='#000',
+            linecolor='#444',
+            range=[-0.5, timesteps + 0.3],
+            showgrid=True,
+            gridcolor='#777'
+        ),
+        yaxis=dict(
+            title=dict(
+                text='Particle Energy (eV)',
+            ),
+            tickmode='array',
+            tickvals=list(range(0, 18, 2)),
+            ticktext=['{0:.0f}'.format(log_tailed_reverse(x, 0.001))
+                      for x in range(0, 18, 2)],
+            linecolor='#444',
+            showgrid=True,
+            gridcolor='#777',
+            range=[-0.3, 8]
+        ),
+        # yaxis=dict(
+        #     title=dict(
+        #         text='Particle Energy (eV)',
+        #     ),
+        #     linecolor='#444',
+        #     showgrid=True,
+        #     gridcolor='#777'
+        # ),
         plot_bgcolor='#fff',
         shapes=all_shapes,
         annotations=all_annotations,
@@ -268,10 +438,14 @@ def generate_distribution_violin_alt(data_path: str, fig_path: str,
         font=dict(size=18)
     )
 
+    fig.update_xaxes(zeroline=False)
+    fig.update_yaxes(zeroline=False)
+
     # fig.show()
     # fig.write_image(
     #     '../vis/poster/vpic32.distrib.violin.alt.{0}.pdf'.format(bw_value))
     fig.write_image(fig_path)
+    # pio.write_image(fig, fig_path, width=2048, height=1536)
 
 
 def gen_skew_runtime_util(fig, data, num_ranks, col_hash_val,

@@ -2,6 +2,7 @@ from typing import Tuple
 
 import datetime
 import matplotlib.pyplot as plt
+import matplotlib.ticker as mtick
 import numpy as np
 import pandas as pd
 import glob
@@ -12,6 +13,16 @@ import re
 OVERRIDES = {
     '/Users/schwifty/Repos/workloads/rundata/Mar8/vpic-carp8m-0-carp.38446/I'
     '-0/carp_P3584M_intvl250000':
+        {
+            'rintvl': 'once_global',
+            'rundata': {
+                'mdb': {
+                    'max':
+                        [0.26, 0.27, 1.63, 3.98, 5.53]
+                }
+            }
+        },
+    '/Users/schwifty/Repos/workloads/vis/bigCARP12k/mar22rel/vpic-carp8m12k-4-carp.22222/I-0/carp_P3584M_intvl250000':
         {
             'rintvl': 'once_global',
             'rundata': {
@@ -115,10 +126,18 @@ def run_runtime_log(all_jobdirs: str, plot_dir: str):
 
     ax.plot(data_x, data_y)
     ax.set_ylim([0, ax.get_ylim()[1]])
+
+    ax2 = ax.twinx()
+    ax2.plot(data_x, np.array([0.157, 0.176, 0.198, 0.237, 1.32])*100, color='orange')
+    ax2.set_ylabel('Normalized Load Stddev')
+    ax2.yaxis.set_major_formatter(mtick.PercentFormatter())
+
     ax.set_xlabel('RTP Interval')
     ax.set_ylabel('I/O time (seconds)')
     ax.set_title('Runtime vs RTP Interval')
+    plt.tight_layout()
     fig.savefig(plot_dir + '/runtime.pdf', dpi=300)
+    # fig.show()
 
 
 def run_runtime(all_jobdirs: str, plot_dir: str):
@@ -207,8 +226,8 @@ def run(dir_in: str, dir_out: str):
     all_runs_glob = dir_in + '/*carp8*/**/carp*'
     all_dirs = glob.glob(all_runs_glob)
     all_dirs.sort()
-    run_runtime(all_dirs, dir_out)
-    run_olap(all_dirs, dir_out)
+    run_runtime_log(all_dirs, dir_out)
+    # run_olap(all_dirs, dir_out)
 
 
 if __name__ == '__main__':

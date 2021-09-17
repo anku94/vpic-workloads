@@ -160,6 +160,26 @@ class VPICReader:
                      ("%s.%s.%s" % (ftype, ts_str, rank))
         return rank_fname
 
+    def sample_hist(self, timestep: int) -> np.array(
+        float):
+        ts_str = self.timesteps[timestep]
+        fpath = ts_str / "hist"
+        hist = np.load(fpath, allow_pickle=True)
+        bins = np.arange(0, 1000, 0.01)
+
+        bin_midpoints = bins[:-1] + np.diff(bins) / 2
+        cdf = np.cumsum(hist)
+        cdf = cdf / cdf[-1]
+        values = np.random.rand(5000000)
+        value_bins = np.searchsorted(cdf, values)
+        # random_from_cdf = bin_midpoints[value_bins]
+
+        bins_low = bins[value_bins]
+        bins_high = bins[value_bins + 1]
+        random_uniform = np.random.uniform(bins_low, bins_high)
+
+        return random_uniform
+
     def sample_global(self, timestep: int,
                       ftype: str = 'eparticle', load_cached=False) -> np.array(
         float):
