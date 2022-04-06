@@ -170,7 +170,9 @@ class VPICReader:
         bin_midpoints = bins[:-1] + np.diff(bins) / 2
         cdf = np.cumsum(hist)
         cdf = cdf / cdf[-1]
-        values = np.random.rand(5000000)
+        valcnt = 2000000
+        # valcnt = 5000
+        values = np.random.rand(valcnt)
         value_bins = np.searchsorted(cdf, values)
         # random_from_cdf = bin_midpoints[value_bins]
 

@@ -1,10 +1,10 @@
-from reneg_graphs import generate_distribution_violin_alt_2
+from reneg_graphs import generate_distribution_violin_alt
 import argparse
 import sys
 
 
 def run(data: str, image: str):
-    generate_distribution_violin_alt_2(data, image)
+    generate_distribution_violin_alt(data, image)
 
 
 if __name__ == '__main__':

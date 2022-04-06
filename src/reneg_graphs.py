@@ -244,17 +244,22 @@ def generate_distribution_violin_alt(data_path: str, fig_path: str,
             bandwidth=bw_value,
             scalemode='width',
             line=dict(
-                width=4
+                width=8
             )
         )
 
-        fig.add_trace(violin_data)
+        fig.add_trace(violin_data, row=1, col=1)
         label = 'Tail Mass: <br />  {0:.1f}%'.format(100 - percent_head_2)
         print(label)
         # gen_annotation(all_shapes, all_annotations, label, tsidx + 0.1, 4,
         #                max(plotted_data))
 
     fig.update_traces(width=1.8)
+    ytickvals = [0, 2, 4, 6, 8, 10, 12, 14, 15.9687]
+    gridcolor = '#777'
+    gridcolor = '#bbb'
+    gridwidth = 2
+    axislinewidth = 3
     fig.update_layout(
         # xaxis=dict(
         #     title=dict(
@@ -268,67 +273,97 @@ def generate_distribution_violin_alt(data_path: str, fig_path: str,
         xaxis2=dict(
             title=dict(
                 text="Simulation Time (s)",
+                standoff=30
             ),
             ticktext=timestamps,
             tickvals=[x + 0.2 for x in range(timesteps)],
             color='#000',
             linecolor='#444',
+            linewidth=axislinewidth,
             range=[-0.5, timesteps + 0.3],
             showgrid=True,
-            gridcolor='#777'
+            gridcolor=gridcolor,
+            gridwidth=gridwidth
         ),
         yaxis=dict(
             title=dict(
-                text='Particle Energy (eV)',
+                text='Energy (γ)'
             ),
             tickmode='array',
-            tickvals=list(range(0, 18, 2)),
+            # tickvals=list(range(0, 18, 2)),
+            tickvals=ytickvals,
             ticktext=['{0:.0f}'.format(log_tailed_reverse(x, 10))
-                      for x in range(0, 18, 2)],
+                      for x in ytickvals],
             linecolor='#444',
+            linewidth=axislinewidth,
             showgrid=True,
-            gridcolor='#777',
+            gridcolor=gridcolor,
+            gridwidth=gridwidth,
             range=[-0.3, 18]
         ),
         yaxis2=dict(
             title=dict(
-                text='Tail Mass (%)',
+                text='Tail Mass',
+                standoff=50
             ),
             linecolor='#777',
+            linewidth=axislinewidth,
             showgrid=True,
-            gridcolor='#aaa',
-            range=[0, 32]
+            gridcolor=gridcolor,
+            gridwidth=gridwidth,
+            tickformat='.0%',
+            range=[0, .32]
         ),
         plot_bgcolor='#fff',
         shapes=all_shapes,
         annotations=all_annotations,
         showlegend=False,
         legend=dict(x=0.87, y=1),
-        font=dict(size=38)
+        font=dict(size=52)
     )
 
     x2 = [x + 0.2 for x in range(timesteps)]
-    y2 = tail_masses
+    y2 = np.array(tail_masses) / 100.0
 
     fig.add_trace(
-        go.Scatter(x=x2, y=y2, marker_size=18, line_width=4,
+        go.Scatter(x=x2, y=y2, marker_size=40, line_width=8,
                    marker_color='#4C78A8'),
         row=2, col=1
     )
 
+    fig.add_shape(type="rect",
+                  xref="x", yref="y",
+                  x0=0, y0=4, x1=7.3, y1=20,
+                  fillcolor="purple",
+                  row=1, col=1,
+                  opacity=0.12
+                  )
+
+    fig.add_shape(type="line",
+                  x0=0, y0=4, x1=7.3, y1=4,
+                  line=dict(
+                      color="purple",
+                      width=12,
+                      dash="dot",
+                  ))
+
     fig.update_xaxes(zeroline=False)
     fig.update_yaxes(zeroline=False)
+    fig.add_annotation(x=6.8, y=5,
+                       text="Distribution<br />Tail",
+                       font=dict(color='#444', size=40))
 
-    fig.show()
+    # fig.show()
     # fig.write_image(
     #     '../vis/poster/vpic32.distrib.violin.alt.{0}.pdf'.format(bw_value))
     # fig.write_image(fig_path)
-    # pio.write_image(fig, fig_path, width=2048, height=1536)
+    pio.write_image(fig, fig_path, width=2048, height=1536)
 
 
 def generate_distribution_violin_alt_2(data_path: str, fig_path: str,
-                                     num_ranks: int = None,
-                                     bw_value: float = 0.03):
+                                       num_ranks: int = None,
+                                       bw_value: float = 0.03):
+    num_ranks = 4
     vpic_reader = VPICReader(data_path, num_ranks=num_ranks)
     ranks = vpic_reader.get_num_ranks()
     timesteps = vpic_reader.get_num_ts()
@@ -347,7 +382,7 @@ def generate_distribution_violin_alt_2(data_path: str, fig_path: str,
     tail_masses = []
 
     for tsidx in range(0, timesteps):
-    # for tsidx in range(0, 3):
+        # for tsidx in range(0, 3):
         # data = vpic_reader.sample_global(tsidx, load_cached=True)
         data = vpic_reader.sample_hist(tsidx)
 
@@ -411,7 +446,7 @@ def generate_distribution_violin_alt_2(data_path: str, fig_path: str,
         ),
         yaxis=dict(
             title=dict(
-                text='Particle Energy (eV)',
+                text='Energy (eV)',
             ),
             tickmode='array',
             tickvals=list(range(0, 18, 2)),
@@ -441,10 +476,10 @@ def generate_distribution_violin_alt_2(data_path: str, fig_path: str,
     fig.update_xaxes(zeroline=False)
     fig.update_yaxes(zeroline=False)
 
-    # fig.show()
+    fig.show()
     # fig.write_image(
     #     '../vis/poster/vpic32.distrib.violin.alt.{0}.pdf'.format(bw_value))
-    fig.write_image(fig_path)
+    # fig.write_image(fig_path)
     # pio.write_image(fig, fig_path, width=2048, height=1536)
 
 

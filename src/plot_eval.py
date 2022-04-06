@@ -6,6 +6,7 @@ import scipy.stats as st
 from typing import List, Tuple
 
 from matplotlib import cm
+from matplotlib.ticker import (MultipleLocator, AutoMinorLocator)
 
 from plot_util import get_olaps, get_predictive_power
 
@@ -44,12 +45,13 @@ def plot_runtime_alt(dir: str) -> None:
     pass
 
 
-def plot_runtime_alt_2(dir: str) -> None:
+def plot_runtime_alt_2(dir: str, save: bool = False) -> None:
     x = ['CARP', 'DELTAFS', 'NOSHUF', 'SORT', 'NOSHUF/SORT']
     ymin = np.array([1428, 1228, 1276, 3360, 1276 + 3360])
     ymax = np.array([1630, 1295, 1279, 3360, 1279 + 3360])
 
-    x = ["NoShuffle", "DeltaFS", "NoShuffle \n+ TritonSort", "CARP"]
+    # x = ["NoShuffle", "DeltaFS", "NoShuffle \n+ TritonSort", "CARP"]
+    x = ["DirectWrite", "DeltaFS", "TritonSort", "CARP"]
     ymin = [1276, 1228, 1276, 1518]
     ymax = [1279, 1295, 1279, 1604]
 
@@ -72,22 +74,32 @@ def plot_runtime_alt_2(dir: str) -> None:
 
     fig, ax = plt.subplots(1, 1)
     # eb = plt.errorbar(x, y, yerr=[errmin, errmax], fmt='.')
-    ax.bar(x, y, width=0.5, yerr=[errmin, errmax], capsize=10, color=cmap(0),
-           ec='black')
-    ax.bar(x, ytop, width=0.5, yerr=[errmin, errmax], bottom=y, color=cmap(1),
-           ec='black')
+    bars = ax.bar(x, y, width=0.5, yerr=[errmin, errmax], capsize=10,
+                  color=cmap(0),
+                  ec='black')
+    bars[2].set_hatch('/')
+    bars = ax.bar(x, ytop, width=0.5, yerr=[errmin, errmax], bottom=y,
+                  color=cmap(0),
+                  ec='black')
+
+    ax.annotate('VPIC', xy=(1.5, 300), rotation=90, fontsize=18)
+    ax.annotate('PostProcessing', xy=(1.5, 1800), rotation=90, fontsize=18)
+
     ax.yaxis.grid(True, color='#bbb')
     ax.set_ylim([0, ax.get_ylim()[1]])
     # ax.set_title('CARP vs Everything - Runtime')
-    base_fontsz = 16
+    base_fontsz = 20
     ax.set_ylabel('Time To Complete (seconds)', fontsize=base_fontsz)
     ax.set_xlabel('Run Type', fontsize=base_fontsz)
+
     for label in (ax.get_xticklabels() + ax.get_yticklabels()):
         label.set_fontsize(base_fontsz - 2)
     fig.tight_layout()
 
-    # fig.show()
-    fig.savefig(dir + '/runtime.pdf', dpi=300)
+    if save:
+        fig.savefig(dir + '/runtime.pdf', dpi=300)
+    else:
+        fig.show()
 
 
 def plot_olap(dir: str, ptile: int) -> None:
@@ -239,10 +251,10 @@ def aggr_intvl_runtime_2(intvls: List, rtdata_path: str) -> Tuple[List, List]:
     return (data_y, data_err)
 
 
-def plot_intvl_runtime_2(dir: str) -> None:
+def plot_intvl_runtime_2(dir: str, save: bool = False) -> None:
     basedir = '/Users/schwifty/Repos/workloads/rundata/eval/runs.big.2'
     rtdata_path = '/Users/schwifty/Repos/workloads/rundata/eval/runs.big.2/rt.csv'
-    fig, axes = plt.subplots(2, 1, sharex=True)
+    fig, axes = plt.subplots(2, 1)
     ax, ax2 = axes[0], axes[1]
 
     intvls = [62500, 125000, 250000, 500000, 750000, 1000000, 'everyepoch']
@@ -261,16 +273,19 @@ def plot_intvl_runtime_2(dir: str) -> None:
                 color=cm(4), lw=2, label='runtime')
 
     axx = ax.twinx()
-    axx.plot(intvls, gen_intvl_std(intvls), color=cm(12), label='load')
+    axx.plot(intvls, gen_intvl_std(intvls), 's-', color=cm(12), label='load',
+             lw=2)
+    axx.yaxis.set_major_formatter('{x:.0f}%')
 
     legend_items = []
     legend_items.append(
-        plt.Line2D([0], [0], label='Runtime', color=cm(4)))
+        plt.Line2D([0], [0], label='Runtime', color=cm(4), lw=2))
     legend_items.append(
-        plt.Line2D([0], [0], label='Load Stddev', color=cm(12)))
-    ax.legend(handles=legend_items, ncol=2, fontsize=base_fontsz - 6,
+        plt.Line2D([0], [0], marker='s', lw=2, label='Load Stddev',
+                   color=cm(12)))
+    ax.legend(handles=legend_items, ncol=2, fontsize=base_fontsz - 4,
               loc="lower left",
-              bbox_to_anchor=(0.0, -0.00))
+              bbox_to_anchor=(0.0, -0.03))
 
     all_data_woob = aggr_intvl_olaps(intvls, csv_path_woob)
     all_data_wo_oob = aggr_intvl_olaps(intvls, csv_path_wo_oob)
@@ -282,6 +297,7 @@ def plot_intvl_runtime_2(dir: str) -> None:
     legend_items = []
     for ptile, data in zip([50, 75, 99], all_data_woob):
         if ptile == 75: continue
+        data = np.array(data) * 2048 / 100.0
         print(data)
         label = '{0} %ile'.format(ptile)
         linecol = cm(cm_ptile[ptile])
@@ -290,51 +306,64 @@ def plot_intvl_runtime_2(dir: str) -> None:
             plt.Line2D([0], [0], marker='o', label=label, color=linecol))
 
     legend_items.append(
-        plt.Line2D([0], [0], marker='o', label='With OOB', color='black'))
+        plt.Line2D([0], [0], marker='o', label='With Out-Of-Order Keys',
+                   color='black'))
     legend_items.append(
-        plt.Line2D([0], [0], marker='s', linestyle='-.', label='Without OOB',
+        plt.Line2D([0], [0], marker='s', linestyle='-.',
+                   label='Without Out-Of-Order Keys',
                    color='gray'))
 
     for ptile, data in zip([50, 75, 99], all_data_wo_oob):
         if ptile == 75: continue
+        data = np.array(data) * 2048 / 100.0
         print(data)
         label = '{0} %ile'.format(ptile)
         ax2.plot(data_x, data, 's-.', color=cm(cm_ptile[ptile] + 1))
 
     runtime_yticks = [300, 600, 900, 1200, 1500, 1800]
     ax.set_yticks(runtime_yticks)
-    ax.set_yticklabels([i / 60 for i in runtime_yticks])
+    ax.set_yticklabels(['{:.0f}'.format(i / 60) for i in runtime_yticks])
     ax2.set_xticks(data_x)
-    intvls = ['62.5K', '125K', '250K', '500K', '750K', '1M', 'once_epoch']
+    ax2.yaxis.set_major_formatter('{x:.0f}X')
+    intvls = ['62.5K', '125K', '250K', '500K', '750K', '1M', 'once_ts']
+    ax.set_xticklabels(intvls, fontsize=base_fontsz - 4)
     ax2.set_xticklabels(intvls, fontsize=base_fontsz - 4)
     ax2.tick_params(axis='y', labelsize=base_fontsz - 4)
     ax.tick_params(axis='y', labelsize=base_fontsz - 4)
     axx.tick_params(axis='y', labelsize=base_fontsz - 4)
 
     ax.set_ylabel('Runtime (mins)', fontsize=base_fontsz - 2)
-    axx.set_ylabel('Load Stddev (%)', fontsize=base_fontsz - 2)
+    axx.set_ylabel('Load Stddev', fontsize=base_fontsz - 2)
     ax.set_ylim([0, ax.get_ylim()[1] + 100])
-    axx.set_ylim([0, 100])
+    axx.set_ylim([-5, 100])
+    axx.yaxis.set_major_locator(MultipleLocator(25))
+    ax.set_xlabel('Renegotiation Interval', fontsize=base_fontsz - 2)
 
-    ax2.set_ylabel('DPS (% of Total)', fontsize=base_fontsz - 2)
+    ax2.set_ylabel('RAF', fontsize=base_fontsz - 2)
     ax2.set_xlabel('Renegotiation Interval', fontsize=base_fontsz - 2)
-    ax2.set_ylim([0, 0.6])
+    ax2.set_ylim([-1, 12])
+    ax2.yaxis.set_major_locator(MultipleLocator(4))
+    ax2.yaxis.set_minor_locator(MultipleLocator(2))
+    # ax2.yaxis.set_major_formatter('{x:.0f}')
 
     for ax in axes:
         ax.xaxis.grid(True, color='#bbb')
         ax.yaxis.grid(True, color='#bbb')
+    ax2.yaxis.grid(True, color='#ddd', which='minor')
 
-    ax2.legend(handles=legend_items, ncol=4, fontsize=base_fontsz - 6,
+    ax2.legend(handles=legend_items, ncol=2, fontsize=base_fontsz - 4,
                loc="lower left",
-               bbox_to_anchor=(0.0, -0.00))
+               bbox_to_anchor=(0.0, -0.10), framealpha=0.6)
     # ax.legend()
 
     # ax.set_title(
     #     'Renegotiation Interval vs Runtime/Partition Quality (w/o OOB)')
     fig.tight_layout()
 
-    # fig.show()
-    fig.savefig(dir + '/intvl.pdf', dpi=600)
+    if save:
+        fig.savefig(dir + '/intvl.pdf', dpi=600)
+    else:
+        fig.show()
 
 
 def gen_intvl_std(intvls: List) -> List:
@@ -417,15 +446,20 @@ def plot_query_latency(dir: str) -> None:
     # fig.savefig(dir + '/latency.pdf')
 
 
-def plot_query_latvssel(dir: str):
+def plot_query_latvssel(dir: str, save: bool = False):
     csv_path = '/Users/schwifty/Repos/workloads/rundata/eval/runs.big.2/querylog_curated_pread.csv'
+    csv_path = '/Users/schwifty/Repos/workloads/rundata/eval/runs.uniform/querylog.csv'
+    csv_scan = '/Users/schwifty/Repos/workloads/rundata/eval/runs.uniform/querylog.scan.csv'
 
     data = pd.read_csv(csv_path)
     data = data.sort_values('qselectivity')
 
     all_plfs = sorted(data['plfspath'].unique())
-    type_carp = all_plfs[0]
-    type_flat = all_plfs[1]
+    type_carp = all_plfs[1]
+    type_flat = all_plfs[0]
+
+    print(type_carp)
+    print(type_flat)
 
     assert (not type_carp.endswith('.merged'))
     assert (type_flat.endswith('.merged'))
@@ -434,26 +468,31 @@ def plot_query_latvssel(dir: str):
     data['qreadus'] += data['qsortus']
 
     data['qreadus'] /= 1e6
-    data['qselectivity'] *= 100
+    data['qkeyselectivity'] *= 100
 
-    data_aggr = data.groupby(['plfspath', 'qbegin', 'qend', 'qselectivity'],
+    data_aggr = data.groupby(['plfspath', 'qbegin', 'qend', 'qkeyselectivity'],
                              as_index=False).agg({'qreadus': ['mean', 'std']})
 
     df_carp = data_aggr[data_aggr['plfspath'] == type_carp]
     df_flat = data_aggr[data_aggr['plfspath'] == type_flat]
 
-    df_carp = df_carp.sort_values('qselectivity')
-    df_flat = df_flat.sort_values('qselectivity')
+    df_carp = df_carp.sort_values('qkeyselectivity')
+    df_flat = df_flat.sort_values('qkeyselectivity')
 
-    drop_idx = [1, 2, 4, 6]
+    drop_idx = [1, 2, 4, 6, 7, 8, 10, 12, 13, 14, 16, 17, 18, 20, 21, 22, 24]
     df_carp = df_carp.drop([df_carp.index[x] for x in drop_idx])
     df_flat = df_flat.drop([df_flat.index[x] for x in drop_idx])
 
-    fig, ax = plt.subplots(1, 1)
+    print(df_carp[['qbegin', 'qend']])
+
+    fig, axes = plt.subplots(2, 1, sharex=True,
+                             gridspec_kw={'height_ratios': [1, 3]})
 
     cm = plt.cm.get_cmap('Set2')
-
     labels = []
+    ax = axes[1]
+    print(df_carp['qreadus'])
+    print(df_flat['qreadus'])
     for type, df in enumerate([df_carp, df_flat]):
         rowidx = 0
         for index, row in df.iterrows():
@@ -461,18 +500,41 @@ def plot_query_latvssel(dir: str):
             #     rowidx += 1
             #     continue
 
-            data_x = row['qselectivity']
+            data_x = row['qkeyselectivity']
             data_y = row['qreadus']['mean']
+            if (rowidx < 3): print('---->', data_y)
             data_err = row['qreadus']['std']
 
             marker = 'o' if type == 0 else 's'
-            color = cm.colors[rowidx]
+            color = cm.colors[rowidx % 8]
 
             ax.plot(data_x, data_y, marker=marker, mec='black', mfc=color,
                     markersize=14)
             ax.errorbar(data_x, data_y, yerr=data_err, color=color)
 
             rowidx += 1
+
+    df_scan = pd.read_csv(csv_scan)
+    df_scan['qreadus'] += df_scan['qsortus']
+    df_scan['qreadus'] /= 1e6
+    df_scan['qkeyselectivity'] *= 100
+    print(df_scan)
+
+    df_scan.sort_values(by='qbegin', inplace=True)
+    df_carp.sort_values(by='qbegin', inplace=True)
+    df_scan['qkeyselectivity'] = list(df_carp['qkeyselectivity'])
+
+    for rowidx, row in df_scan.iterrows():
+        data_x = row['qkeyselectivity']
+        data_y = row['qreadus']
+        print(data_x, data_y)
+
+        marker = '^'
+        color = cm.colors[rowidx % 8]
+
+        axes[0].plot(data_x, data_y, marker=marker, mec='black', mfc=color,
+                     markersize=14)
+        pass
 
     legend_items = []
     # num_rows
@@ -481,24 +543,55 @@ def plot_query_latvssel(dir: str):
     #                       label='Query {0}'.format(i + 1))
     #     legend_items.append(item)
 
-    legend_items.append(plt.Line2D([0], [0], marker='o', label='CarpDB'))
-    legend_items.append(plt.Line2D([0], [0], marker='s', label='TritonSort'))
+    legend_items.append(
+        plt.Line2D([0], [0], marker='^', label='FullScan', markersize=12))
+    legend_items.append(
+        plt.Line2D([0], [0], marker='s', label='TritonSort', markersize=12))
+    legend_items.append(
+        plt.Line2D([0], [0], marker='o', label='CarpDB', markersize=12))
 
-    base_fontsz = 16
-    ax.set_xlabel('Data Read for Query (percent)', fontsize=base_fontsz)
-    ax.set_ylabel('Query Latency (seconds)', fontsize=base_fontsz)
+    base_fontsz = 20
+    ax.set_xlabel('Query Selectivity', fontsize=base_fontsz)
+    fig.supylabel('Query Latency (seconds)', fontsize=base_fontsz, x=0.03,
+                  y=0.55)
+    axes[0].spines.bottom.set_visible(False)
+    axes[0].xaxis.tick_top()
+    axes[1].spines.top.set_visible(False)
+
     # ax.set_title('CarpDB vs TritonSort - TEMP', color='red')
-    ax.legend(handles=legend_items, fontsize=12)
+    axes[1].legend(handles=legend_items, fontsize=18)
+    # ax.set_xticks(np.arange(0, 2, 0.5))
+    ax.minorticks_off()
+    ax.xaxis.set_major_locator(MultipleLocator(0.5))
+    ax.yaxis.set_major_locator(MultipleLocator(1))
+    ax.xaxis.set_minor_locator(MultipleLocator(0.25))
+    ax.yaxis.set_minor_locator(MultipleLocator(0.5))
+    ax.xaxis.set_major_formatter('{x:.1f}%')
+    # ax.set_yticklabels()
 
-    for label in (ax.get_xticklabels() + ax.get_yticklabels()):
-        label.set_fontsize(base_fontsz - 2)
+    axes[0].set_ylim([330, 350])
+
+    d = .5  # proportion of vertical to horizontal extent of the slanted line
+    kwargs = dict(marker=[(-1, -d), (1, d)], markersize=12,
+                  linestyle="none", color='k', mec='k', mew=1, clip_on=False)
+    axes[0].plot([0, 1], [0, 0], transform=axes[0].transAxes, **kwargs)
+    axes[1].plot([0, 1], [1, 1], transform=axes[1].transAxes, **kwargs)
+
+    for ax in axes:
+        for label in (ax.get_xticklabels() + ax.get_yticklabels()):
+            label.set_fontsize(base_fontsz - 1)
+
+        ax.xaxis.grid(True, color='#bbb', which='major')
+        ax.xaxis.grid(True, color='#ddd', which='minor')
+        ax.yaxis.grid(True, color='#bbb', which='major')
+        # ax.yaxis.grid(True, color='#ddd', which='minor')
     fig.tight_layout()
+    fig.subplots_adjust(hspace=0.05)
 
-    ax.xaxis.grid(True, color='#bbb')
-    ax.yaxis.grid(True, color='#bbb')
-
-    # fig.show()
-    fig.savefig(dir + '/qlatvssel.pdf', dpi=600)
+    if save:
+        fig.savefig(dir + '/qlatvssel.v2.pdf', dpi=600)
+    else:
+        fig.show()
 
 
 def plot_query_selectivity(dir: str) -> None:
@@ -654,20 +747,25 @@ def plot_stat_trigger(dir: str) -> None:
     pass
 
 
-def plot_predictive_power(dir: str) -> None:
+def plot_predictive_power(dir: str, save: bool = False) -> None:
     fig, ax = plt.subplots(1, 1)
 
     basedir = '/Users/schwifty/Repos/workloads/rundata/eval/runs.big.2'
+    basedir = '/Users/schwifty/Repos/workloads/rundata/eval/runs.uniform'
     oracle_csv = basedir + '/oracle.predictive.olap.csv'
 
     # trace_dir = '/Users/schwifty/Repos/workloads/data/eval_trace'
-    # # epochs, oracle_olap = get_predictive_power(trace_dir)
+    # trace_dir = '/Users/schwifty/Repos/workloads/rundata/eval/runs.uniform/hist_trace_uniform'
+    # epochs, oracle_olap = get_predictive_power(trace_dir)
     # oracle_df = pd.DataFrame(zip(epochs, oracle_olap), columns=['timestep', 'oracolap'])
     # oracle_df.to_csv(oracle_csv, index=None)
+    #
+    # return
 
     oracle_df = pd.read_csv(oracle_csv)
     epochs = oracle_df['timestep']
-    oracle_olap = oracle_df['oracolap']
+    y_orac = oracle_df['oracolap']
+    print(y_orac)
 
     # ax.plot(epochs, oracle_olap)
 
@@ -680,37 +778,200 @@ def plot_predictive_power(dir: str) -> None:
     actual_df.columns = list(map(''.join, actual_df.columns.values))
     print(actual_df)
 
-    y_act = actual_df['olappct']
+    y_act = actual_df['olappctmean']
 
     print(epochs)
 
-    x_ticks = range(len(epochs))
-    ax.plot(x_ticks, oracle_olap, label='Modeled')
-    ax.plot(x_ticks, y_act, label='CARP')
+    norm_fact = 0.18 / 4
 
-    base_fontsz = 16
-    ax.set_xlabel('Timestep', fontsize=base_fontsz - 2)
-    ax.set_ylabel('Max Partition Size (Derived, % of Total)',
-                  fontsize=base_fontsz - 2)
+    y_orac /= norm_fact
+    y_act /= norm_fact
+
+    x_ticks = range(len(epochs))
+    ax.plot(x_ticks, y_orac, 'o-', label='Static', markersize=10,
+            linewidth=2)
+    ax.plot(x_ticks, y_act, 's-', label='CARP (Dynamic)', markersize=10,
+            linewidth=2)
+
+    base_fontsz = 20
+    ax.set_xlabel('Simulation Timestep', fontsize=base_fontsz)
+    ax.set_ylabel('Max Read Amplification',
+                  fontsize=base_fontsz)
     ax.set_yscale('log')
 
-    ticks = [0.2, 1, 10, 35]
+    ticks = [1, 3, 10, 30, 150, 750]
     ax.set_yticks(ticks)
-    ax.set_yticklabels([str(t) + '%' for t in ticks])
+    ax.set_yticklabels([str(t) + '%' for t in ticks], fontsize=base_fontsz - 1)
+    ax.set_yticklabels([str(t) + 'X' for t in ticks], fontsize=base_fontsz - 1)
 
     ax.yaxis.grid(True, color='#bbb')
     ax.xaxis.grid(True, color='#bbb')
 
     ax.set_xticks(x_ticks)
-    ax.set_xticklabels(epochs, rotation=30)
-    ax.legend(fontsize=base_fontsz - 4)
+    ax.set_xticklabels(epochs, rotation=30, fontsize=base_fontsz - 4)
+
+    ax.minorticks_off()
+    ax.legend(fontsize=base_fontsz - 2)
 
     fig.tight_layout()
-    # fig.show()
-    fig.savefig(dir + '/olapcomp.pdf', dpi=600)
+    if save:
+        fig.savefig(dir + '/olapcomp.v2.pdf', dpi=600)
+    else:
+        fig.show()
 
 
-def plot_subpart_perf(dir: str) -> None:
+def plot_subpart_perf_abs(dir: str, save: bool = False) -> None:
+    basedir = '/Users/schwifty/Repos/workloads/rundata/eval/big.2'
+    basedir = '/Users/schwifty/Repos/workloads/rundata/eval/runs.uniform'
+    csv50 = basedir + '/subpart_exps/olaps.50.csv'
+    csv99 = basedir + '/subpart_exps/olaps.99.csv'
+
+    cols = ['intvl', 'runidx', 'epochidx', 'olappct']
+    df50 = pd.read_csv(csv50, header=None, names=cols)
+    df99 = pd.read_csv(csv99, header=None, names=cols)
+
+    def aggr(df, runs):
+        print(runs)
+        df = df[(df['runidx'] >= runs[0]) & (df['runidx'] <= runs[1])]
+        df = df.groupby('epochidx', as_index=None).agg({
+            'olappct': ['mean', 'std']
+        })
+        df.columns = list(map(''.join, df.columns.values))
+        print(df)
+        return df['olappctmean'] * 512 * 4 / 100.0
+
+    # ysub4x50 = aggr(df50, [13, 15])
+    # ysub2x50 = aggr(df50, [10, 12])
+    # ysub1x50 = aggr(df50, [4, 6])
+    # ysub0x50 = aggr(df50, [7, 9])
+    #
+    # print(ysub2x50)
+    #
+    # ysub4x99 = aggr(df99, [13, 15])
+    # ysub2x99 = aggr(df99, [10, 12])
+    # ysub1x99 = aggr(df99, [4, 6])
+    # ysub0x99 = aggr(df99, [7, 9])
+    ysub4x50_a = aggr(df50, [18, 21])
+    ysub4x50_b = aggr(df50, [4, 6])
+    print(ysub4x50_a)
+    print(ysub4x50_b)
+    w1 = 4
+    w2 = 3
+    ysub4x50 = (ysub4x50_a * w1 + ysub4x50_b * w2) / 7
+    print(ysub4x50)
+    ysub2x50 = aggr(df50, [7, 9])
+    ysub1x50 = aggr(df50, [10, 12])
+    ysub0x50 = aggr(df50, [13, 15])
+
+    print(ysub0x50)
+
+    # ysub4x99 = aggr(df99, [4, 6])
+    ysub4x99 = aggr(df99, [18, 21])
+    ysub2x99 = aggr(df99, [7, 9])
+    ysub1x99 = aggr(df99, [10, 12])
+    ysub0x99 = aggr(df99, [13, 15])
+
+    x_ticks = range(12)
+    x_ticklabels = "200,1400,2600,3800,5000,6200,7400,8600,9800,12200,15800,19400"
+    x_ticklabels = "200,2000,3800,5600,7400,9200,11000,12800,14600,16400,18200,19400".split(
+        ',')
+    # x_ticklabels = x_ticklabels.split(',')
+
+    fig, axes = plt.subplots(2, 1, sharex=False)
+
+    # ax.plot(x_ticks y_sub4)
+    # ax.plot(x_ticks, y_sub1)
+    cm = plt.cm.get_cmap('tab20c')
+
+    ax = axes[0]
+    ax.plot(x_ticks, ysub0x50, 'o--', label='50%ile, w/o repart.', color=cm(1))
+    ax.plot(x_ticks, ysub1x50, 'o-', label='50%ile, with repart.', color=cm(0))
+    ax.plot(x_ticks, ysub0x99, 's--', label='99%ile, w/o repart.', color=cm(5))
+    ax.plot(x_ticks, ysub1x99, 's-', label='99%ile, with repart.', color=cm(4))
+    # ax.plot(x_ticks, ysub0x50 / ysub1x50, 'o-',
+    #         label='Repartitioning (50 %ile)',
+    #         color=cm(0))
+    # ax.plot(x_ticks, ysub0x99 / ysub1x99, 's--',
+    #         label='Repartitioning (99 %ile)',
+    #         color=cm(1))
+
+    ax = axes[1]
+    # ax.plot(x_ticks, ysub1x50 / ysub2x50, 'o-', label='2x Subpart. (50 %ile)',
+    #         color=cm(4))
+    # ax.plot(x_ticks, ysub1x50 / ysub4x50, 'o-', label='4x Subpart. (50 %ile)',
+    #         color=cm(8))
+    #
+    # ax.plot(x_ticks, ysub1x99 / ysub2x99, 's--', label='2x Subpart. (99 %ile)',
+    #         color=cm(5))
+    # ax.plot(x_ticks, ysub1x99 / ysub4x99, 's--', label='4x Subpart., (99 %ile)',
+    #         color=cm(9))
+    ax.plot(x_ticks, ysub1x50, '^--', label='50%ile, no subpart.', color=cm(0), alpha=0.6)
+    ax.plot(x_ticks, ysub2x50, 'o--', label='50%ile, 2X subpart', color=cm(0), alpha=0.8)
+    ax.plot(x_ticks, ysub4x50, 's-', label='50%ile, 4X subpart', color=cm(0))
+    # ax.plot(x_ticks, ysub1x99, 'o--', label='50%ile, 1X Subpart.', color=cm(6))
+    # ax.plot(x_ticks, ysub2x99, 'o--', label='50%ile, 2X Subpart', color=cm(5))
+    # ax.plot(x_ticks, ysub4x99, 's-', label='50%ile, 4X Subpart', color=cm(4))
+
+    ax = axes[0]
+
+    base_fontsz = 16
+    # ax.set_ylabel('Multiplier Gains in Max DPS', fontsize=base_fontsz)
+    # fig.supylabel('DPS', x=0.03, y=0.57,
+    #               fontsize=base_fontsz)
+
+    # y1_ticks = [0, 10, 20, 30, 40, 50, 60]
+    y2_ticks = [0, 1, 2, 3, 4]
+    # axes[0].set_yticks(y1_ticks)
+    # axes[0].set_yticklabels([str(i) + 'X' for i in y1_ticks],
+    #                         fontsize=base_fontsz - 4)
+    # axes[1].set_yticks(y2_ticks)
+    # axes[1].set_yticklabels([str(i) + 'X' for i in y2_ticks],
+    #                         fontsize=base_fontsz - 4)
+
+    # ax.legend(fontsize=base_fontsz - 4)
+
+    for ax in axes:
+        ax.set_ylabel('RAF', fontsize=base_fontsz - 1)
+        ax.set_xlabel('Simulation Timestep', fontsize=base_fontsz - 1)
+        ax.set_xticks(x_ticks)
+        ax.set_xticklabels(x_ticklabels, rotation=30, fontsize=base_fontsz - 4)
+        ax.xaxis.grid(True, color='#bbb')
+        ax.yaxis.grid(True, color='#bbb')
+
+    axes[0].legend(ncol=2, fontsize=base_fontsz - 4, loc="lower left",
+                   bbox_to_anchor=(0.0, 0.722))
+    axes[0].set_yscale('log')
+    # axes[0].yaxis.set_major_locator(MultipleLocator(2))
+    # yticks0 = [0.1, 0.4, 1.6, 6.4, 25.6, 100]
+    # yticks0 = [0.1, 0.5, 2.5, 10, 40]
+    yticks0 = [1, 4, 16, 64, 256]
+    yticks0 = [4, 16, 64, 256, 1024]
+    axes[0].set_yticks(yticks0)
+    axes[0].yaxis.set_major_formatter('{x:.0f}X')
+    axes[0].minorticks_off()
+    axes[0].set_ylim([0.5, 512])
+    axes[0].set_ylim([2, 2048])
+
+    axes[1].legend(ncol=2, fontsize=base_fontsz - 4, loc="lower left",
+                   bbox_to_anchor=(0.0, 0.62))
+    axes[1].set_ylim([0.5, 16])
+    axes[1].set_yscale('log')
+    axes[1].minorticks_off()
+    # axes[1].yaxis.set_major_locator(MultipleLocator(2))
+    # axes[1].yaxis.set_minor_locator(MultipleLocator(1))
+    yticks1 = [1, 2, 4, 8]
+    axes[1].set_yticks(yticks1)
+    # axes[1].yaxis.grid(True, color='#ddd', which='minor')
+    axes[1].yaxis.set_major_formatter('{x:.0f}X')
+
+    fig.tight_layout()
+    if save:
+        fig.savefig(dir + '/carpdb.impact.alt2.pdf', dpi=600)
+    else:
+        fig.show()
+
+
+def plot_subpart_perf(dir: str, save: bool = False) -> None:
     csv50 = '/Users/schwifty/Repos/workloads/rundata/eval/runs.big.2/subpart_exps/olaps.50.csv'
     csv99 = '/Users/schwifty/Repos/workloads/rundata/eval/runs.big.2/subpart_exps/olaps.99.csv'
 
@@ -786,26 +1047,31 @@ def plot_subpart_perf(dir: str) -> None:
     # ax.legend(fontsize=base_fontsz - 4)
 
     for ax in axes:
-        ax.legend(ncol=2, fontsize=base_fontsz - 6, loc="lower left",
+        ax.legend(ncol=2, fontsize=base_fontsz - 4, loc="lower left",
                   bbox_to_anchor=(0.0, -0.07))
         ax.set_xticks(x_ticks)
         ax.set_xticklabels(x_ticklabels, rotation=30, fontsize=base_fontsz - 4)
         ax.xaxis.grid(True, color='#bbb')
         ax.yaxis.grid(True, color='#bbb')
 
+    axes[0].legend(ncol=1, fontsize=base_fontsz - 4, loc="lower left",
+                   bbox_to_anchor=(0.5, -0.07))
     axes[1].set_xlabel('Timestep', fontsize=base_fontsz)
 
     fig.tight_layout()
-    # fig.show()
-    fig.savefig(dir + '/carpdb.impact.pdf', dpi=600)
+    if save:
+        fig.savefig(dir + '/carpdb.impact.alt.pdf', dpi=600)
+    else:
+        fig.show()
 
 
-def plot_query_ycsb(dir: str) -> None:
+def plot_query_ycsb(dir: str, save: bool = False) -> None:
     basedir = '/Users/schwifty/Repos/workloads/rundata/eval/runs.big.2/YCSB.eval'
+    basedir = '/Users/schwifty/Repos/workloads/rundata/eval/runs.uniform/YCSB'
     widths = [5, 20, 50, 100]
-    tags = ['orig', 'merged']
+    tags = ['carp', 'comp']
     qlog_fmt = '{0}/querylog.{1}.{2}.csv'
-    base_fontsz = 16
+    base_fontsz = 12
 
     all_dfs = []
     for tag in tags:
@@ -817,15 +1083,17 @@ def plot_query_ycsb(dir: str) -> None:
             dfs.append(df)
         all_dfs.append(pd.concat(dfs))
 
-    all_dfs[1]['epoch'] -= 2
+    # all_dfs[1]['epoch'] -= 2
     print(all_dfs[0].describe())
     print(all_dfs[1].describe())
 
     fig, axes = plt.subplots(2, 2, sharex=True, sharey=True)
     axes = [*axes[0], *axes[1]]
     print(axes)
-    epochs = [0, 1, 3, 4]
+    epochs = [0, 4, 7, 11]
     epoch_labels = "200,2600,6200,9800,19400".split(',')
+    epoch_labels = "200,7400,14600,19400".split(',')
+    epoch_labels = dict(zip(epochs, epoch_labels))
 
     x = np.arange(len(widths))
     width = 0.35
@@ -851,6 +1119,7 @@ def plot_query_ycsb(dir: str) -> None:
         })
 
         print(orig_df)
+        print(merged_df)
         ax.bar(x - width / 2, orig_df['qreadus'], width, label='CARP/Read',
                color=cmap(0), edgecolor='#000')
         ax.bar(x - width / 2, orig_df['qsortus'], width,
@@ -860,43 +1129,110 @@ def plot_query_ycsb(dir: str) -> None:
                label='TritonSort/Read', color=cmap(2), edgecolor='#000')
         ax.yaxis.grid(True, color='#bbb')
         ax.set_xticks(x)
-        ax.set_xticklabels([str(w) for w in widths], fontsize=base_fontsz - 3)
+        ax.set_xticklabels([str(w) for w in widths], fontsize=base_fontsz - 1)
         yticklabels = [0, 300, 600, 900, 1200]
         ax.set_yticks(yticklabels)
-        ax.set_yticklabels(yticklabels, fontsize=base_fontsz - 3)
-        ax.set_title('Epoch {0}'.format(epoch_labels[epoch]))
+        ax.set_yticklabels(yticklabels, fontsize=base_fontsz - 1)
+        ax.set_title('Epoch {0}'.format(epoch_labels[epoch]),
+                     fontsize=base_fontsz)
 
     # axes[0].legend(loc="upper right", ncol=3, bbox_to_anchor=(1, 2))
     lines_labels = [ax.get_legend_handles_labels() for ax in fig.axes[:1]]
     lines, labels = [sum(lol, []) for lol in zip(*lines_labels)]
-    fig.legend(lines, labels, ncol=3, bbox_to_anchor=(0.9, 0.94))
+    fig.legend(lines, labels, ncol=3, bbox_to_anchor=(0.94, 0.93),
+               fontsize=base_fontsz - 1, framealpha=0.8)
 
-    fig.supxlabel('Query Width (#SSTs)', y=0.04, fontsize=base_fontsz - 2)
-    fig.supylabel('Time Taken For 1000 Queries (s)', x=0.04,
-                  fontsize=base_fontsz - 2)
+    fig.supxlabel('Query Width (#SSTs)', x=0.55, y=0.04,
+                  fontsize=base_fontsz + 1)
+    fig.supylabel('Total Time Taken (seconds)', x=0.03, y=0.55,
+                  fontsize=base_fontsz + 1)
     fig.tight_layout()
-    # fig.show()
-    fig.savefig(dir + '/query.ycsb.pdf', dpi=600)
+    if save:
+        fig.savefig(dir + '/query.ycsb.v2.pdf', dpi=600)
+    else:
+        fig.show()
+
+
+def plot_subpart_query(dir: str, save: bool = False) -> None:
+    data_path = "/Users/schwifty/Repos/workloads/rundata/eval/runs.uniform/YCSB.eval.subpart"
+    all_subs = {}
+    for sub in [1, 2, 4]:
+        df = pd.read_csv(
+            '{0}/querylog.sub{1}.carp.5.csv'.format(data_path, sub))
+        df = df.groupby('epoch', as_index=None).agg({
+            'qreadus': ['sum']
+        })
+        df.columns = list(map(''.join, df.columns.values))
+        print(df)
+        all_subs[sub] = df['qreadussum']
+
+    fig, axes = plt.subplots(2, 1)
+    base_fontsz = 16
+    ax = axes[0]
+    x_ticklabels = "200,2000,3800,5600,7400,9200,11000,12800,14600,16400,18200,19400".split(
+        ',')
+    xticks = range(len(x_ticklabels))
+
+    labels = {
+        1: 'No Subpart',
+        2: '2X Subpart',
+        4: '4X Subpart'
+    }
+    cm = plt.cm.get_cmap('tab20c')
+    ax.plot(xticks, all_subs[1] / 1e6, '^--', label='No subpart.', color=cm(0), alpha=0.6)
+    ax.plot(xticks, all_subs[2] / 1e6, 'o--', label='2X subpart.', color=cm(0), alpha=0.8)
+    ax.plot(xticks, all_subs[4] / 1e6, 's-', label='4X subpart.', color=cm(0))
+
+    p = np.array(all_subs[1])
+    q = np.array(all_subs[2])
+    r = np.array(all_subs[4])
+
+    print(max(q/p), min(q/p))
+    print(max(r/p), min(r/p))
+
+    ax.set_xticks(xticks)
+    ax.set_xticklabels(x_ticklabels, rotation=30, fontsize=base_fontsz - 4)
+    ax.set_ylim([0, 25])
+
+    for a in axes:
+        a.set_xlabel('Simulation Timestep', fontsize=base_fontsz - 1)
+        a.set_ylabel('Latency (s)', fontsize=base_fontsz - 1)
+
+    ax.yaxis.set_major_locator(MultipleLocator(5))
+    ax.yaxis.set_minor_locator(MultipleLocator(2.5))
+    ax.xaxis.grid(True, color='#bbb')
+    ax.yaxis.grid(True, color='#bbb')
+    ax.yaxis.grid(True, color='#ddd', which='minor')
+
+    ax.legend(ncol=3, fontsize=base_fontsz - 4)
+
+    fig.tight_layout()
+    if save:
+        fig.savefig(dir + '/subpart.query.pdf', dpi=600)
+    else:
+        fig.show()
 
 
 def eval(dir: str) -> None:
-    # plot_runtime_alt(dir)
-    # plot_runtime_alt_2(dir)
-    # plot_olap(dir, 50)
-    # plot_olap(dir, 75)
-    # plot_olap(dir, 99)
-    # plot_intvl_runtime(dir)
-    plot_intvl_runtime_2(dir)
-    # plot_intvl_std(dir)
-    # plot_query_latency(dir)
-    # plot_query_latvssel(dir)
-    # plot_query_selectivity(dir)
-    # plot_query_selectivity_obs(dir)
-    # plot_carp_olap(dir)
-    # plot_stat_trigger(dir)
-    # plot_predictive_power(dir)
-    # plot_subpart_perf(dir)
-    # plot_query_ycsb(dir)
+#     # plot_runtime_alt(dir)
+#     # plot_olap(dir, 50)
+#     # plot_olap(dir, 75)
+#     # plot_olap(dir, 99)
+#     # plot_intvl_runtime(dir)
+#     # plot_intvl_std(dir)
+#     # plot_query_latency(dir)
+#     # plot_query_selectivity(dir)
+#     # plot_query_selectivity_obs(dir)
+#     # plot_carp_olap(dir)
+#     # plot_stat_trigger(dir)
+#     plot_runtime_alt_2(dir, False)
+#     # plot_query_latvssel(dir, False)
+#     # plot_predictive_power(dir, True)
+#     plot_query_ycsb(dir, False)
+#     # plot_intvl_runtime_2(dir, True)
+#     # plot_subpart_perf(dir, False)
+#     # plot_subpart_perf_abs(dir, False)
+    plot_subpart_query(dir, False)
 
 
 if __name__ == '__main__':

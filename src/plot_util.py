@@ -12,10 +12,10 @@ def get_hist():
 
 
 def get_points(dir: str, tsidx: int, npts: int = 99) -> List[float]:
-    hists = glob.glob(dir + '/hist_trace/hist.data.*')
+    hists = glob.glob(dir + '/hist_trace/T.*')
     hists = sorted(hists, key=lambda x: int(x.split('.')[-1]))
     hist = hists[tsidx]
-    hist_data = np.load(hist, allow_pickle=True)
+    hist_data = np.load(hist + '/hist', allow_pickle=True)
     _, hist_bins = np.histogram(range(1000), bins=100000, range=(0, 1000))
 
     hobj = Histogram(bin_edges=hist_bins, bin_weights=hist_data)
@@ -41,7 +41,7 @@ def get_predictive_power(dir: str) -> Tuple[List[str], List[float]]:
     reader = VPICReader(dir)
     all_ts = [reader.get_ts(i) for i in range(reader.get_num_ts())]
 
-    points = get_points_2(dir, 0, 512)
+    points = get_points_2(dir, 0, 512 * 4)
 
     all_olap_pct = []
 
@@ -107,13 +107,16 @@ def analyze_manifest(dir: str, hist_dir: str, nranks: int):
 
 def adhoc_analysis():
     out_dir = '/Users/schwifty/Repos/workloads/rundata/eval/runs.big.2/subpart_exps'
+    out_dir = '/Users/schwifty/Repos/workloads/rundata/eval/runs.uniform/subpart_exps'
     intvls = [62500, 125000, 250000, 500000, 750000, 1000000, 'everyepoch']
     intvls = [ 250000 ]
     for intvl in intvls:
         hist_dir = '/Users/schwifty/Repos/workloads/rundata/eval/runs.big.2'
+        hist_dir = '/Users/schwifty/Repos/workloads/rundata/eval/runs.uniform'
         dir = '/Users/schwifty/Repos/workloads/rundata/eval/runs.big.2/runs.big.2/run.{0}.{1}/carp_P3584M_intvl{0}/plfs/particle'
         dir = '/Users/schwifty/Repos/workloads/rundata/eval/runs.big.2/subpart_exps/runs.qlat.tar/run.{0}.{1}/carp_P3584M_intvl{0}/plfs/particle'
-        for idx in range(4, 16):
+        dir = '/Users/schwifty/Repos/workloads/rundata/eval/runs.uniform/runs.uniform/run.{0}.{1}/carp_P3584M_intvl{0}/plfs/particle'
+        for idx in range(4, 22):
             dpath = dir.format(intvl, idx)
             olaps = analyze_manifest(dpath, hist_dir, 512)
             print(olaps)

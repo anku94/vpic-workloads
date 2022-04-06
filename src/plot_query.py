@@ -532,26 +532,30 @@ def plot_sst_query_final():
     # fig_path = '/JUN29/qlat.jun29.fullpar.best.wsort.pdf'
     fig_path = None
 
-    df_path = '/Users/schwifty/Repos/workloads/rundata/eval/runs.big.2/querylog_curated_pread.csv'
-    df_path_2 = '/Users/schwifty/Repos/workloads/rundata/eval/runs.big.2/querylog_everyepoch_curated_pread.csv'
-    df = pd.read_csv(df_path)
-    paths = df['plfspath'].unique()
-    print(paths)
-    df_cp = df[df['plfspath'] == paths[0]]
-    df_ts = df[df['plfspath'] == paths[1]]
-    df_cp_2 = pd.read_csv(df_path_2)
+    # df_path = '/Users/schwifty/Repos/workloads/rundata/eval/runs.big.2/querylog_curated_pread.csv'
+    # df_path_2 = '/Users/schwifty/Repos/workloads/rundata/eval/runs.big.2/querylog_everyepoch_curated_pread.csv'
+    df_path_cp = '/Users/schwifty/Repos/workloads/rundata/eval/runs.uniform/querylog.carp.csv'
+    df_path_ts = '/Users/schwifty/Repos/workloads/rundata/eval/runs.uniform/querylog.comp.csv'
+    # df = pd.read_csv(df_path_3)
+    # paths = df['plfspath'].unique()
+    # print(paths)
+    # df_cp = df[df['plfspath'] == paths[0]]
+    # df_ts = df[df['plfspath'] == paths[1]]
+    # df_cp_2 = pd.read_csv(df_path_2)
+    df_cp = pd.read_csv(df_path_cp)
+    df_ts = pd.read_csv(df_path_ts)
 
-    for idx, df in enumerate([df_cp, df_cp_2, df_ts]):
+    for idx, df in enumerate([df_cp, df_ts]):
         data_x = df['qselectivity'] * 100
         data_x = data_x.values[:, np.newaxis]
         data_y = df['qreadus'] / 1e6
 
-        if idx == 0 or idx == 1:
+        if idx == 0:
             data_y = (df['qreadus'] + df['qsortus']) / 1e6
         else:
             data_y = df['qreadus'] / 1e6
 
-        labels = ["CARP_everyepoch", "CARP_250k", "TritonSort"]
+        labels = ["CARP", "TritonSort"]
 
         data_y = data_y.values
         lr = LinearRegression().fit(data_x, data_y)
@@ -580,10 +584,10 @@ if __name__ == '__main__':
     # plot_sst_bar()
     # plot_sst_read_distrib()
     # plot_sst_read_distrib_adhoc()
-    plot_sst_read_unified()
+    # plot_sst_read_unified()
     # plot_sst_read()
     # plot_mf_bar()
     # plot_sample_queries()
     # plot_sst_read_subpart()
     # plot_sst_subpart_parcomp()
-    # plot_sst_query_final()
+    plot_sst_query_final()
