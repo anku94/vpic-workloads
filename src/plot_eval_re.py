@@ -278,7 +278,7 @@ def plot_query_latvssel_unified(dir: str, save: bool = False):
     fig, ax = plt.subplots(1, 1)
     cm = plt.cm.get_cmap('Set2')
 
-    markers = ['o', 's', 'D', '^']
+    markers = ['s', 'o', 'D', '^']
 
     for type, df in enumerate([df_carp, df_flat, df_fq, df_scan]):
         rowidx = 0
@@ -306,9 +306,9 @@ def plot_query_latvssel_unified(dir: str, save: bool = False):
     legend_items.append(
         plt.Line2D([0], [0], marker='D', label='FastQuery', markersize=12))
     legend_items.append(
-        plt.Line2D([0], [0], marker='s', label='TritonSort', markersize=12))
+        plt.Line2D([0], [0], marker='o', label='TritonSort', markersize=12))
     legend_items.append(
-        plt.Line2D([0], [0], marker='o', label='CarpDB', markersize=12))
+        plt.Line2D([0], [0], marker='s', label='CARP', markersize=12))
 
     ax.legend(handles=legend_items, fontsize=18, loc="lower left",
               bbox_to_anchor=(0.51, -0.01))
@@ -350,7 +350,7 @@ def plot_query_latvssel_unified(dir: str, save: bool = False):
 
     fig.tight_layout()
     if save:
-        fig.savefig(dir + '/qlatvssel.v4.pdf', dpi=600)
+        fig.savefig(dir + '/qlatvssel.v5.pdf', dpi=600)
     else:
         fig.show()
 
@@ -787,13 +787,60 @@ def plot_intvl_runtime_2(dir: str, save: bool = False) -> None:
     else:
         fig.show()
 
+def plot_rtp_lat(eval_dir: str, save: False):
+    latdata_path = '/Users/schwifty/Repos/workloads/rundata/post-sc-jul28-onwards/rtp-bench-runs.csv'
+    df = pd.read_csv(latdata_path)
+    print(df)
+
+    fig, ax = plt.subplots(1, 1)
+    linestyles = {
+        100: '-',
+        10: '-.',
+        1: ':'
+    }
+
+    for rnum in linestyles.keys():
+        print(rnum)
+        df_plot = df[df['rounds'] == rnum]
+        data_x = df_plot['nranks']
+        data_y = df_plot['mean']
+        ls = linestyles[rnum]
+        label = 'Avg ({} rounds)'.format(rnum)
+        ax.plot(data_x, data_y, ls, label=label)
+
+    df_std = df[df['rounds'] == 100]
+    data_y1 = df_std['mean'] - df_std['std']
+    data_y2 = df_std['mean'] + df_std['std']
+    data_x = df_std['nranks']
+
+    ax.fill_between(data_x, data_y1, data_y2, facecolor='green', alpha=0.1)
+
+    ax.set_xscale('log')
+    xticks = df['nranks'].unique()
+    ax.set_xticks(xticks)
+    ax.minorticks_off()
+    ax.set_xticklabels([str(i) for i in xticks])
+    ax.yaxis.set_major_formatter(lambda x, pos: '{:.0f}ms'.format(x/1000))
+
+    ax.set_title('RTP Round Latency')
+    ax.set_xlabel('Number of Ranks')
+    ax.set_ylabel('Time')
+
+    ax.legend(loc='upper left')
+
+    if save:
+        fig.savefig(eval_dir + '/post-sc/rtp.lat.pdf', dpi=600)
+    else:
+        fig.show()
+
 
 def run(eval_dir):
     # plot_runtime_alt_2(eval_dir, True)
-    plot_query_latvssel_unified(eval_dir, True)
+    # plot_query_latvssel_unified(eval_dir, True)
     # plot_query_ycsb(eval_dir, True)
     # plot_subpart_perf_abs(eval_dir, True)
     # plot_intvl_runtime_2(eval_dir, True)
+    plot_rtp_lat(eval_dir, True)
 
 
 if __name__ == '__main__':

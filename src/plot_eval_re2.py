@@ -1,10 +1,11 @@
 import glob
-import ipdb
 import matplotlib.pyplot as plt
+from matplotlib.ticker import MultipleLocator
 import multiprocessing
 import numpy as np
 import pandas as pd
 import re
+import sys
 
 
 def plot_init():
@@ -124,7 +125,7 @@ def plot_bwusage(exp_dir, plot_dir, save=False):
     nranks = 512
     polling_delta = 100  # ms
     pdf = 1000.0 / polling_delta  # bytes_delta to bytes/sec
-    pdf /= 2**20  # bytes/sec to mbytes/sec
+    pdf /= 2 ** 20  # bytes/sec to mbytes/sec
 
     bwdf = read_bw_usage(exp_dir, nranks)
     bwdf["mbps"] = bwdf["bw_sum"] * pdf
@@ -229,27 +230,77 @@ def get_run_params(run_path):
     return all_params
 
 
-def run_paramsweep_analysis(plot_dir, cached=False):
-    rundir = "/mnt/lt20ad1/carp-jobdir/load-balancing-paramsweep"
+def gen_allrun_df():
+    all_runs = glob.glob(run_dir + "/run*")
 
-    all_runs = glob.glob(rundir + "/run1*")
-    all_runs += glob.glob(rundir + "/run2*")
+    all_params = []
+    for run in all_runs:
+        try:
+            params = get_run_params(run)
+            all_params.append(params)
+        except Exception as e:
+            print("Failed to parse: {}".format(run))
 
-    all_runs = glob.glob(rundir + "/run*")
+    run_df = pd.DataFrame.from_dict(all_params)
+    run_df.to_csv(".run_df")
 
-    if not cached:
-        all_params = []
-        for run in all_runs:
-            try:
-                params = get_run_params(run)
-                all_params.append(params)
-            except Exception as e:
-                print("Failed to parse: {}".format(run))
 
-        run_df = pd.DataFrame.from_dict(all_params)
-        run_df.to_csv(".run_df")
-    else:
-        run_df = pd.read_csv(".run_df")
+def plot_allrun_df(run_df):
+    run_df = run_df.groupby('pvtcnt', as_index=False).agg(
+        {'total_io_time_mean': 'mean',
+         'max_fin_dura_mean': 'mean',
+         'wr_min_mean': 'mean',
+         'wr_max_mean': 'mean'
+         })
+
+    labels_x = run_df['pvtcnt']
+    data_x = np.arange(len(labels_x))
+    data_y1a = run_df['total_io_time_mean']
+    data_y1b = run_df['max_fin_dura_mean']
+    data_y2a = run_df['wr_min_mean']
+    data_y2b = run_df['wr_max_mean']
+
+    ax1_ylim = 160 * 1e3
+    ax2_ylim = 14 * 1e6
+
+    fig, ax = plt.subplots(1, 1)
+
+    ax.plot(data_x, data_y1a, label='io_time', marker='x')
+    ax.plot(data_x, data_y1b, label='max_findur', marker='x')
+
+    ax.set_title('Runtime/Load Balance as f(pivot_count)')
+    ax.set_xlabel('#pivots')
+    ax.set_ylabel('Runtime (one epoch)')
+
+    ax.yaxis.set_major_formatter(lambda x, pos: '{:.0f}s'.format(x / 1e3))
+    ax.set_xticks(data_x)
+    ax.set_xticklabels([str(x) for x in labels_x])
+    ax.minorticks_off()
+
+    ax2 = ax.twinx()
+    width = 0.35
+    ax2.bar(data_x - width / 2, data_y2a, width=width, label='min_load',
+            alpha=0.5)
+    ax2.bar(data_x + width / 2, data_y2b, width=width, label='max_load',
+            alpha=0.5)
+    ax2.yaxis.set_major_formatter(lambda x, pos: '{:.0f}M'.format(x / 1e6))
+    ax2.set_ylabel('Load Per Rank')
+
+    ax.yaxis.set_minor_locator(MultipleLocator(5000))
+    ax.yaxis.grid(b=True, which='major', color='#aaa')
+    ax.yaxis.grid(b=True, which='minor', color='#ddd')
+
+    ax.set_ylim([0, ax1_ylim])
+    ax2.set_ylim([0, ax2_ylim])
+
+    fig.legend(ncol=2, bbox_to_anchor=(0.25, 0.78), loc='lower left')
+
+    fig.tight_layout()
+    return fig, ax
+
+
+def run_allrun_plots(plot_dir):
+    run_df = pd.read_csv('.run_df')
 
     params_agg = [
         p
@@ -258,14 +309,34 @@ def run_paramsweep_analysis(plot_dir, cached=False):
     ]
     agg_ops = {p: ["mean", std] for p in params_agg}
 
-    run_df = run_df.groupby(["intvl", "pvtcnt", "drop"], as_index=False).agg(agg_ops)
+    run_df = run_df.groupby(["intvl", "pvtcnt", "drop"], as_index=False).agg(
+        agg_ops)
     run_df.columns = ["_".join(col).strip("_") for col in run_df.columns]
-    print(run_df)
+
+    all_intvls = run_df['intvl'].unique()
+    all_drop = run_df["drop"].unique()
+
+    for intvl in all_intvls:
+        intvl_df = run_df[run_df['intvl'] == intvl]
+        fig, ax = plot_allrun_df(intvl_df)
+        fig_path = '{}/run.intvl{}.pdf'.format(plot_dir, intvl)
+        fig.savefig(fig_path)
+
+    for intvl in all_intvls:
+        for drop in all_drop:
+            param_df = run_df[(run_df['intvl'] == intvl)
+                              & (run_df["drop"] == drop)]
+            fig, ax = plot_allrun_df(param_df)
+            fig_path = '{}/run.intvl{}.drop{}.pdf'.format(plot_dir, intvl, drop)
+            fig.savefig(fig_path)
 
 
 if __name__ == "__main__":
     # plot_dir for narwhal
+    run_dir = "/mnt/lt20ad1/carp-jobdir/load-balancing-paramsweep"
     plot_dir = "figures/20220815"
+    plot_dir = "/Users/schwifty/Repos/workloads/rundata/20220825-pvtcnt-analysis"
     plot_init()
     #  run_bwusage(plot_dir)
-    run_paramsweep_analysis(plot_dir, cached=False)
+    # gen_allrun_df(run_dir, cached=False)
+    run_allrun_plots(plot_dir)
