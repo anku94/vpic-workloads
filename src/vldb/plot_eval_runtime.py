@@ -1,33 +1,16 @@
 """ Created Sep 15, 2022 """
 
-import glob
 import matplotlib.pyplot as plt
 from matplotlib.ticker import MultipleLocator
-import multiprocessing
 import numpy as np
 import os
 import pandas as pd
-import re
-import sys
+
+from common import plot_init
 
 
 def std(s):
     return np.std(s)
-
-
-def plot_init():
-    SMALL_SIZE = 12
-    MEDIUM_SIZE = 14
-    BIGGER_SIZE = 16
-
-    plt.rc(
-        "font", size=SMALL_SIZE
-    )  # controls default text sizes plt.rc("axes", titlesize=SMALL_SIZE)  # fontsize of the axes title
-    plt.rc("axes", labelsize=MEDIUM_SIZE)  # fontsize of the x and y labels
-    plt.rc("xtick", labelsize=SMALL_SIZE)  # fontsize of the tick labels
-    plt.rc("ytick", labelsize=SMALL_SIZE)  # fontsize of the tick labels
-    plt.rc("legend", fontsize=SMALL_SIZE)  # legend fontsize
-    plt.rc("figure", titlesize=BIGGER_SIZE)  # fontsize of the figure title
 
 
 def plot_allrun_df(run_df):

@@ -1,7 +1,7 @@
 import glob
 import matplotlib.pyplot as plt
 import pandas as pd
-from plot_eval_re2 import plot_init
+from common import plot_init
 
 def plot_size():
     plot_dir = '/Users/schwifty/Repos/workloads/rundata/20220825-pvtcnt-analysis'
