@@ -273,7 +273,7 @@ def plot_query_latvssel_unified(dir: str, save: bool = False):
 
     p = df_carp['timemean']
     q = df_fq['timemean']
-    print(max(q/p), min(q/p))
+    print(max(q / p), min(q / p))
 
     fig, ax = plt.subplots(1, 1)
     cm = plt.cm.get_cmap('Set2')
@@ -756,11 +756,13 @@ def plot_intvl_runtime_2(dir: str, save: bool = False) -> None:
     ax2.set_yscale('log')
     ax2_yticks = [1, 2, 4, 8, 16]
     ax2.set_yticks(ax2_yticks)
+
     def tickfmt(x):
         if x < 4:
-            return '{:.2f}X'.format(x/4)
+            return '{:.2f}X'.format(x / 4)
         else:
-            return '{:.0f}X'.format(x/4)
+            return '{:.0f}X'.format(x / 4)
+
     ax2.set_yticklabels([tickfmt(x) for x in ax2_yticks])
     ax2.set_ylim([1, 18])
     # ax2.yaxis.set_major_locator(MultipleLocator(4))
@@ -787,51 +789,7 @@ def plot_intvl_runtime_2(dir: str, save: bool = False) -> None:
     else:
         fig.show()
 
-def plot_rtp_lat(eval_dir: str, save: False):
-    latdata_path = '/Users/schwifty/Repos/workloads/rundata/post-sc-jul28-onwards/rtp-bench-runs.csv'
-    df = pd.read_csv(latdata_path)
-    print(df)
 
-    fig, ax = plt.subplots(1, 1)
-    linestyles = {
-        100: '-',
-        10: '-.',
-        1: ':'
-    }
-
-    for rnum in linestyles.keys():
-        print(rnum)
-        df_plot = df[df['rounds'] == rnum]
-        data_x = df_plot['nranks']
-        data_y = df_plot['mean']
-        ls = linestyles[rnum]
-        label = 'Avg ({} rounds)'.format(rnum)
-        ax.plot(data_x, data_y, ls, label=label)
-
-    df_std = df[df['rounds'] == 100]
-    data_y1 = df_std['mean'] - df_std['std']
-    data_y2 = df_std['mean'] + df_std['std']
-    data_x = df_std['nranks']
-
-    ax.fill_between(data_x, data_y1, data_y2, facecolor='green', alpha=0.1)
-
-    ax.set_xscale('log')
-    xticks = df['nranks'].unique()
-    ax.set_xticks(xticks)
-    ax.minorticks_off()
-    ax.set_xticklabels([str(i) for i in xticks])
-    ax.yaxis.set_major_formatter(lambda x, pos: '{:.0f}ms'.format(x/1000))
-
-    ax.set_title('RTP Round Latency')
-    ax.set_xlabel('Number of Ranks')
-    ax.set_ylabel('Time')
-
-    ax.legend(loc='upper left')
-
-    if save:
-        fig.savefig(eval_dir + '/post-sc/rtp.lat.pdf', dpi=600)
-    else:
-        fig.show()
 
 
 def run(eval_dir):
