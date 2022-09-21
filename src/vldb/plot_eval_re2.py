@@ -11,7 +11,6 @@ import sys
 from common import plot_init
 
 
-
 def df_stat(exp_dir, rank, stat, op="match"):
     pfpath_rank = "{}/vpic-perfstats.log.{}".format(exp_dir, rank)
     df = pd.read_csv(pfpath_rank).dropna()
@@ -81,7 +80,7 @@ def plot_bwusage(exp_dir, plot_dir, save=False):
     nranks = 512
     polling_delta = 100  # ms
     pdf = 1000.0 / polling_delta  # bytes_delta to bytes/sec
-    pdf /= 2 ** 20  # bytes/sec to mbytes/sec
+    pdf /= 2**20  # bytes/sec to mbytes/sec
 
     bwdf = read_bw_usage(exp_dir, nranks)
     bwdf["mbps"] = bwdf["bw_sum"] * pdf
@@ -128,25 +127,27 @@ def run_bwusage(plot_dir):
 
 
 def plot_allrun_df(run_df):
-    run_df = run_df.groupby('pvtcnt', as_index=False).agg(
-        {'total_io_time_mean': 'mean',
-         'total_io_time_std': 'mean',
-         'max_fin_dura_mean': 'mean',
-         'wr_min_mean': 'mean',
-         'wr_max_mean': 'mean'
-         })
+    run_df = run_df.groupby("pvtcnt", as_index=False).agg(
+        {
+            "total_io_time_mean": "mean",
+            "total_io_time_std": "mean",
+            "max_fin_dura_mean": "mean",
+            "wr_min_mean": "mean",
+            "wr_max_mean": "mean",
+        }
+    )
     # run_df.columns = ["_".join(col).strip("_") for col in run_df.columns]
 
-    labels_x = run_df['pvtcnt']
+    labels_x = run_df["pvtcnt"]
     data_x = np.arange(len(labels_x))
-    data_y1a = run_df['total_io_time_mean']
-    data_y1a_err = run_df['total_io_time_std']
+    data_y1a = run_df["total_io_time_mean"]
+    data_y1a_err = run_df["total_io_time_std"]
 
     print(data_y1a_err)
 
-    data_y1b = run_df['max_fin_dura_mean']
-    data_y2a = run_df['wr_min_mean']
-    data_y2b = run_df['wr_max_mean']
+    data_y1b = run_df["max_fin_dura_mean"]
+    data_y2a = run_df["wr_min_mean"]
+    data_y2b = run_df["wr_max_mean"]
 
     ax1_ylim = 160 * 1e3
     ax2_ylim = 14 * 1e6
@@ -154,49 +155,48 @@ def plot_allrun_df(run_df):
     fig, ax = plt.subplots(1, 1)
 
     # ax.plot(data_x, data_y1a, label='io_time', marker='x')
-    ax.errorbar(data_x,
-                data_y1a, yerr=data_y1a_err, label='io_time', marker='x')
-    ax.plot(data_x, data_y1b, label='max_findur', marker='x')
+    ax.errorbar(data_x, data_y1a, yerr=data_y1a_err, label="io_time", marker="x")
+    ax.plot(data_x, data_y1b, label="max_findur", marker="x")
 
-    ax.set_title('Runtime/Load Balance as f(pivot_count)')
-    ax.set_xlabel('#pivots')
-    ax.set_ylabel('Runtime (one epoch)')
+    ax.set_title("Runtime/Load Balance as f(pivot_count)")
+    ax.set_xlabel("#pivots")
+    ax.set_ylabel("Runtime (one epoch)")
 
-    ax.yaxis.set_major_formatter(lambda x, pos: '{:.0f}s'.format(x / 1e3))
+    ax.yaxis.set_major_formatter(lambda x, pos: "{:.0f}s".format(x / 1e3))
     ax.set_xticks(data_x)
     ax.set_xticklabels([str(x) for x in labels_x])
     ax.minorticks_off()
 
     ax2 = ax.twinx()
     width = 0.35
-    ax2.bar(data_x - width / 2, data_y2a, width=width, label='min_load',
-            alpha=0.5)
-    ax2.bar(data_x + width / 2, data_y2b, width=width, label='max_load',
-            alpha=0.5)
-    ax2.yaxis.set_major_formatter(lambda x, pos: '{:.0f}M'.format(x / 1e6))
-    ax2.set_ylabel('Load Per Rank')
+    ax2.bar(data_x - width / 2, data_y2a, width=width, label="min_load", alpha=0.5)
+    ax2.bar(data_x + width / 2, data_y2b, width=width, label="max_load", alpha=0.5)
+    ax2.yaxis.set_major_formatter(lambda x, pos: "{:.0f}M".format(x / 1e6))
+    ax2.set_ylabel("Load Per Rank")
 
     ax.yaxis.set_minor_locator(MultipleLocator(5000))
-    ax.yaxis.grid(b=True, which='major', color='#aaa')
-    ax.yaxis.grid(b=True, which='minor', color='#ddd')
+    ax.yaxis.grid(b=True, which="major", color="#aaa")
+    ax.yaxis.grid(b=True, which="minor", color="#ddd")
 
     ax.set_ylim([0, ax1_ylim])
     ax2.set_ylim([0, ax2_ylim])
 
-    fig.legend(ncol=2, bbox_to_anchor=(0.25, 0.78), loc='lower left')
+    fig.legend(ncol=2, bbox_to_anchor=(0.25, 0.78), loc="lower left")
 
     fig.tight_layout()
     return fig, ax
 
 
 def plot_allrun_intvlwise(run_df):
-    run_df = run_df.groupby(['intvl', 'pvtcnt'], as_index=False).agg(
-        {'total_io_time_mean': 'mean',
-         'total_io_time_std': 'mean',
-         'max_fin_dura_mean': 'mean',
-         'wr_min_mean': 'mean',
-         'wr_max_mean': 'mean'
-         })
+    run_df = run_df.groupby(["intvl", "pvtcnt"], as_index=False).agg(
+        {
+            "total_io_time_mean": "mean",
+            "total_io_time_std": "mean",
+            "max_fin_dura_mean": "mean",
+            "wr_min_mean": "mean",
+            "wr_max_mean": "mean",
+        }
+    )
 
     ax1_ylim = 160 * 1e3
     fig, ax = plt.subplots(1, 1)
@@ -204,27 +204,28 @@ def plot_allrun_intvlwise(run_df):
     labels_x = None
     data_x = None
 
-    intvls = run_df['intvl'].unique()
+    intvls = run_df["intvl"].unique()
     for intvl in intvls:
-        intvl_df = run_df[run_df['intvl'] == intvl].sort_values(['pvtcnt'])
-        labels_x = intvl_df['pvtcnt']
+        intvl_df = run_df[run_df["intvl"] == intvl].sort_values(["pvtcnt"])
+        labels_x = intvl_df["pvtcnt"]
         data_x = np.arange(len(labels_x))
-        data_y = intvl_df['total_io_time_mean']
-        data_y_err = intvl_df['total_io_time_std']
-        ax.errorbar(data_x, data_y, yerr=data_y_err, label='{}'.format(intvl),
-                    capsize=8)
+        data_y = intvl_df["total_io_time_mean"]
+        data_y_err = intvl_df["total_io_time_std"]
+        ax.errorbar(
+            data_x, data_y, yerr=data_y_err, label="{}".format(intvl), capsize=8
+        )
 
     ax.set_xticks(data_x)
     ax.set_xticklabels([str(i) for i in labels_x])
 
-    ax.set_xlabel('#pivots')
-    ax.set_ylabel('Runtime (one epoch)')
-    ax.set_title('Pivot Count vs Runtime')
+    ax.set_xlabel("#pivots")
+    ax.set_ylabel("Runtime (one epoch)")
+    ax.set_title("Pivot Count vs Runtime")
 
-    ax.yaxis.set_major_formatter(lambda x, pos: '{:.0f}s'.format(x / 1e3))
+    ax.yaxis.set_major_formatter(lambda x, pos: "{:.0f}s".format(x / 1e3))
     ax.yaxis.set_minor_locator(MultipleLocator(5000))
-    ax.yaxis.grid(b=True, which='major', color='#aaa')
-    ax.yaxis.grid(b=True, which='minor', color='#ddd')
+    ax.yaxis.grid(b=True, which="major", color="#aaa")
+    ax.yaxis.grid(b=True, which="minor", color="#ddd")
 
     ax.set_ylim([0, ax1_ylim])
     ax.legend()
@@ -234,12 +235,12 @@ def plot_allrun_intvlwise(run_df):
 
 
 def plot_ior(plot_dir, save=False) -> None:
-    df_path = '/Users/schwifty/Repos/workloads/rundata/20220912-aggr-data/ior-logs.csv'
-    df = pd.read_csv(df_path, on_bad_lines='skip', index_col=False)
+    df_path = "/Users/schwifty/Repos/workloads/rundata/20220912-aggr-data/ior-logs.csv"
+    df = pd.read_csv(df_path, on_bad_lines="skip", index_col=False)
     df.rename(columns={"bw(MiB/s)": "bw"}, inplace=True)
-    df_aggr = df.groupby(["blksz", "nranks", "epcnt"], as_index=False).agg({
-        "bw": "mean"
-    })
+    df_aggr = df.groupby(["blksz", "nranks", "epcnt"], as_index=False).agg(
+        {"bw": "mean"}
+    )
 
     all_nranks = df_aggr["nranks"].unique()
     fig, ax = plt.subplots(1, 1)
@@ -268,7 +269,7 @@ def plot_ior(plot_dir, save=False) -> None:
 
 
 def run_allrun_plots(plot_dir):
-    run_df = pd.read_csv('.run_df')
+    run_df = pd.read_csv(".run_df")
 
     params_agg = [
         p
@@ -277,42 +278,41 @@ def run_allrun_plots(plot_dir):
     ]
     agg_ops = {p: ["mean", std] for p in params_agg}
 
-    run_df = run_df.groupby(["intvl", "pvtcnt", "drop"], as_index=False).agg(
-        agg_ops)
+    run_df = run_df.groupby(["intvl", "pvtcnt", "drop"], as_index=False).agg(agg_ops)
     run_df.columns = ["_".join(col).strip("_") for col in run_df.columns]
 
-    all_intvls = run_df['intvl'].unique()
+    all_intvls = run_df["intvl"].unique()
     all_drop = run_df["drop"].unique()
 
-    dropzero_df = run_df[run_df['drop'] == 0]
+    dropzero_df = run_df[run_df["drop"] == 0]
     fig, ax = plot_allrun_intvlwise(dropzero_df)
-    fig_path = '{}/run.intvlwise.pdf'.format(plot_dir)
+    fig_path = "{}/run.intvlwise.pdf".format(plot_dir)
     fig.savefig(fig_path)
     sys.exit(0)
 
     for intvl in all_intvls:
-        intvl_df = run_df[run_df['intvl'] == intvl]
+        intvl_df = run_df[run_df["intvl"] == intvl]
         fig, ax = plot_allrun_df(intvl_df)
-        fig_path = '{}/run.intvl{}.pdf'.format(plot_dir, intvl)
+        fig_path = "{}/run.intvl{}.pdf".format(plot_dir, intvl)
         fig.savefig(fig_path)
         # fig.show()
         # sys.exit(0)
 
     for intvl in all_intvls:
         for drop in all_drop:
-            param_df = run_df[(run_df['intvl'] == intvl)
-                              & (run_df["drop"] == drop)]
+            param_df = run_df[(run_df["intvl"] == intvl) & (run_df["drop"] == drop)]
             fig, ax = plot_allrun_df(param_df)
-            fig_path = '{}/run.intvl{}.drop{}.pdf'.format(plot_dir, intvl, drop)
+            fig_path = "{}/run.intvl{}.drop{}.pdf".format(plot_dir, intvl, drop)
             fig.savefig(fig_path)
 
 
 def read_fio_df(data_path):
-    fio_dfpath = '{}/fio-stats.csv'.format(data_path)
-    fio_df = pd.read_csv(fio_dfpath, names=['rname', 'io_bytes', 'bw',
-                                            'runtime']).dropna()
-    fio_bs = fio_df['rname'].map(lambda x: x.split('_')[1][1:])
-    fio_epcnt = fio_df['rname'].map(lambda x: x.split('_')[2][2:].strip('.fio'))
+    fio_dfpath = "{}/fio-stats.csv".format(data_path)
+    fio_df = pd.read_csv(
+        fio_dfpath, names=["rname", "io_bytes", "bw", "runtime"]
+    ).dropna()
+    fio_bs = fio_df["rname"].map(lambda x: x.split("_")[1][1:])
+    fio_epcnt = fio_df["rname"].map(lambda x: x.split("_")[2][2:].strip(".fio"))
     print(fio_df)
     print(fio_bs)
     print(fio_epcnt)
@@ -321,76 +321,72 @@ def read_fio_df(data_path):
     fio_ep = [1, 3, 6, 9, 12]
     fio_data = [209, 665, 1242, 1750, 2672]
 
-    carp_path = '{}/carp-suite-repfirst.csv'.format(data_path)
+    carp_path = "{}/carp-suite-repfirst.csv".format(data_path)
     carp_df = pd.read_csv(carp_path)
     print(carp_df)
 
-    dfs_path = '{}/deltafs-jobdir.csv'.format(data_path)
+    dfs_path = "{}/deltafs-jobdir.csv".format(data_path)
     dfs_df = pd.read_csv(dfs_path)
 
-    ax.plot(fio_ep, fio_data, label='FIO')
-    ax.plot(carp_df['epcnt'], carp_df['total_io_time'] / 1000.0, label='CARP')
-    ax.plot(dfs_df['epcnt'], dfs_df['total_io_time'] / 1000.0, label='DeltaFS')
+    ax.plot(fio_ep, fio_data, label="FIO")
+    ax.plot(carp_df["epcnt"], carp_df["total_io_time"] / 1000.0, label="CARP")
+    ax.plot(dfs_df["epcnt"], dfs_df["total_io_time"] / 1000.0, label="DeltaFS")
 
-    ax.set_title('Data Scalability')
+    ax.set_title("Data Scalability")
 
     ax.legend()
-    ax.set_xlabel('Epoch')
-    ax.set_ylabel('Time taken')
+    ax.set_xlabel("Epoch")
+    ax.set_ylabel("Time taken")
     # fig.show()
-    fig.savefig('{}/datascal.pdf'.format(data_path), dpi=300)
+    fig.savefig("{}/datascal.pdf".format(data_path), dpi=300)
 
     pass
 
 
 def run_datascal_vs_dfs_fio():
-    data_path = '/Users/schwifty/Repos/workloads/rundata/20220825-pvtcnt-analysis/data'
+    data_path = "/Users/schwifty/Repos/workloads/rundata/20220825-pvtcnt-analysis/data"
     read_fio_df(data_path)
 
 
 def plot_rtp_lat(eval_dir: str, save: False):
-    latdata_path = '/Users/schwifty/Repos/workloads/rundata/post-sc-jul28-onwards/rtp-bench-runs.csv'
+    latdata_path = "/Users/schwifty/Repos/workloads/rundata/post-sc-jul28-onwards/rtp-bench-runs.csv"
     df = pd.read_csv(latdata_path)
     print(df)
 
     fig, ax = plt.subplots(1, 1)
-    linestyles = {
-        100: '-',
-        10: '-.',
-        1: ':'
-    }
+    linestyles = {100: "-", 10: "-.", 1: ":"}
 
     for rnum in linestyles.keys():
         print(rnum)
-        df_plot = df[df['rounds'] == rnum]
-        data_x = df_plot['nranks']
-        data_y = df_plot['mean']
+        df_plot = df[df["rounds"] == rnum]
+        data_x = df_plot["nranks"]
+        data_y = df_plot["mean"]
         ls = linestyles[rnum]
-        label = 'Avg ({} rounds)'.format(rnum)
+        label = "Avg ({} rounds)".format(rnum)
         ax.plot(data_x, data_y, ls, label=label)
 
-    df_std = df[df['rounds'] == 100]
-    data_y1 = df_std['mean'] - df_std['std']
-    data_y2 = df_std['mean'] + df_std['std']
-    data_x = df_std['nranks']
+    df_std = df[df["rounds"] == 100]
+    data_y1 = df_std["mean"] - df_std["std"]
+    data_y2 = df_std["mean"] + df_std["std"]
+    data_x = df_std["nranks"]
 
-    ax.fill_between(data_x, data_y1, data_y2, facecolor='green', alpha=0.1)
+    ax.fill_between(data_x, data_y1, data_y2, facecolor="green", alpha=0.1)
 
-    ax.set_xscale('log')
-    xticks = df['nranks'].unique()
+    ax.set_xscale("log")
+    xticks = df["nranks"].unique()
     ax.set_xticks(xticks)
     ax.minorticks_off()
     ax.set_xticklabels([str(i) for i in xticks])
-    ax.yaxis.set_major_formatter(lambda x, pos: '{:.0f}ms'.format(x / 1000))
+    ax.yaxis.set_major_formatter(lambda x, pos: "{:.0f}ms".format(x / 1000))
 
-    ax.set_title('RTP Round Latency')
-    ax.set_xlabel('Number of Ranks')
-    ax.set_ylabel('Time')
+    ax.set_title("RTP Round Latency")
+    ax.set_xlabel("Number of Ranks")
+    ax.set_ylabel("Time")
 
-    ax.legend(loc='upper left')
+    ax.legend(loc="upper left")
 
     if save:
-        fig.savefig(eval_dir + '/post-sc/rtp.lat.pdf', dpi=600)
+        fig.savefig(eval_dir + "/post-sc/rtp.lat.pdf", dpi=600)
     else:
         fig.show()
 
@@ -403,6 +399,17 @@ def run_plot_rtpbench(plot_dir):
 if __name__ == "__main__":
     # plot_dir for narwhal
     run_dir = "/mnt/lt20ad1/carp-jobdir/load-balancing-paramsweep"
+    run_dir = "/mnt/lt20ad2/carp-jobdir/carp-suite-repfirst-allpvtcnt"
+    run_dir = "/mnt/lt20ad2/carp-jobdir/carp-suite-repfirst"
+    run_dir = "/mnt/lt20ad1/carp-jobdir/carp-suite-repfirst"
+    run_dir = (
+        "/mnt/lt20ad2/carp-jobdir/carp-suite-repfirst-allpvtcnt-throttle-3m-fakeio"
+    )
+    run_dir = (
+        "/mnt/lt20ad2/carp-jobdir/carp-suite-repfirst-allpvtcnt-throttle-4m-fakeio"
+    )
+    run_dir = "/mnt/lt20ad2/carp-jobdir/carp-suite-repfirst-allpvtcnt-throttled"
+    #  run_dir = "/mnt/lt20ad1/deltafs-jobdir"
     plot_dir = "figures/20220815"
     plot_dir = "/Users/schwifty/Repos/workloads/rundata/20220825-pvtcnt-analysis"
     plot_dir = "/Users/schwifty/Repos/workloads/rundata/20220912-aggr-data"

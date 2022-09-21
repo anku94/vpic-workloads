@@ -37,6 +37,65 @@ def std(s):
     return np.std(s)
 
 
+def get_run_params_deltafs(run_path):
+    dirname = run_path.split("/")[-1]
+    params_from_dirname = dirname.split("-")[-1:]
+
+    all_params = {}
+
+    for p in params_from_dirname:
+        match_obj = re.search("(\D+)([0-9]+)", p)
+        param_name = match_obj.group(1)
+        if param_name == "ep":
+            param_name = "epcnt"
+        param_val = int(match_obj.group(2))
+        all_params[param_name] = param_val
+
+    run_log = "{}/log.txt".format(run_path)
+    with open(run_log, errors="replace") as f:
+        lines = f.readlines()
+        lines = lines[-200:]
+
+        print(lines)
+
+        l = [line for line in lines if "particle writes" in line][0]
+        mobj = re.search("min: (.*), max: (.*)\)", l)
+        wr_min, wr_max = mobj.group(1), mobj.group(2)
+        wr_min = humrd_to_num(wr_min)
+        wr_max = humrd_to_num(wr_max)
+
+        wr_dropped = 0
+
+        l = [line for line in lines if "particles dropped" in line]
+        if len(l) > 0:
+            l = l[0]
+            mobj = re.search("> (.*) particles", l)
+            wr_dropped = humrd_to_num(mobj.group(1))
+
+        all_params["wr_min"] = wr_min
+        all_params["wr_max"] = wr_max
+        all_params["wr_dropped"] = wr_dropped
+
+        all_l = [line for line in lines if "@ epoch #" in line]
+        for l in all_l:
+            mobj = re.search("epoch #(\d+)\s+(\d+\.?\d*.*?)- (\d+\.?\d*.*?)\(", l)
+            ep_id = mobj.group(1)
+            ep_tmin = mobj.group(2)
+            ep_tmax = mobj.group(3)
+            all_params["epoch{}_tmin".format(ep_id)] = humrd_to_time_ms(ep_tmin)
+            all_params["epoch{}_tmax".format(ep_id)] = humrd_to_time_ms(ep_tmax)
+
+    l = [line for line in lines if "final compaction draining" in line][0]
+    mobj = re.search("\d+\.\d+.*", l.strip())
+    all_params["max_fin_dura"] = humrd_to_time_ms(mobj.group(0))
+
+    l = [line for line in lines if "total io time" in line][0]
+    mobj = re.search("\d+\.\d+.*", l.strip())
+    all_params["total_io_time"] = humrd_to_time_ms(mobj.group(0))
+
+    return all_params
+
+
 def get_run_params(run_path):
     params_from_dirname = run_path.split("/")[-1].split(".")
 
@@ -78,7 +137,7 @@ def get_run_params(run_path):
 
         all_l = [line for line in lines if "@ epoch #" in line]
         for l in all_l:
-            mobj = re.search("epoch #(\d+)\s+(\d+\.\d+.*?)- (\d+\.\d+.*?)\(", l)
+            mobj = re.search("epoch #(\d+)\s+(\d+\.?\d*.*?)- (\d+\.?\d*.*?)\(", l)
             ep_id = mobj.group(1)
             ep_tmin = mobj.group(2)
             ep_tmax = mobj.group(3)
@@ -96,7 +155,27 @@ def get_run_params(run_path):
     return all_params
 
 
+def gen_allrun_df_deltafs(run_dir):
+    run_name = run_dir.split("/")[-1]
+
+    all_runs = glob.glob(run_dir + "/deltafs-baseline*")
+
+    all_params = []
+    for run in all_runs:
+        try:
+            params = get_run_params_deltafs(run)
+            all_params.append(params)
+        except Exception as e:
+            print("Failed to parse: {}".format(run))
+
+    run_df = pd.DataFrame.from_dict(all_params)
+    print(run_df)
+    run_df.to_csv("{}.csv".format(run_name))
+
+
 def gen_allrun_df(run_dir):
+    run_name = run_dir.split("/")[-1]
+
     all_runs = glob.glob(run_dir + "/run*")
 
     all_params = []
@@ -108,8 +187,9 @@ def gen_allrun_df(run_dir):
             print("Failed to parse: {}".format(run))
 
     run_df = pd.DataFrame.from_dict(all_params)
-    run_df.to_csv(".run_df")
+    print(run_df)
+    run_df.to_csv("{}.csv".format(run_name))
 
 
 if __name__ == "__main__":
-    gen_allrun_df('')
+    gen_allrun_df("")
