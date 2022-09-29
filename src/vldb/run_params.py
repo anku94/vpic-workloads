@@ -2,6 +2,8 @@ import glob
 import numpy as np
 import pandas as pd
 import re
+import sys
+import os
 
 
 def humrd_to_num(s):
@@ -38,42 +40,58 @@ def std(s):
 
 
 def get_dirname_params(run_path):
-    dirname = run_path.split("/")[-1]
-
+    dirname = os.path.basename(run_path)
     params_from_dirname = dirname.split(".")
 
     all_params = {}
     for p in params_from_dirname:
         match_obj = re.search("(\D+)([0-9]+)", p)
+        if not match_obj:
+            continue
         param_name = match_obj.group(1)
         param_val = int(match_obj.group(2))
         all_params[param_name] = param_val
+
+    if "nranks" not in all_params:
+        nranks = 512
+        print(f"Setting default nranks: {nranks} for {run_path}")
+        all_params["nranks"] = nranks
 
     return all_params
 
 
 def get_run_params(run_path):
-    all_params = get_dirname_params(run_path)
+    if run_path.endswith("log.txt"):
+        run_dir = os.path.dirname(run_path)
+        run_log = run_path
+    else:
+        run_dir = run_path
+        run_log = f"{run_dir}/log.txt"
 
-    run_log = "{}/log.txt".format(run_path)
+    all_params = get_dirname_params(run_dir)
+
     with open(run_log, errors="replace") as f:
         lines = f.readlines()
         lines = lines[-200:]
 
         #  l = [line for line in lines if "per rank" in line][-2]
         #  l = [line for line in lines if "particle writes" in line][0]
-        all_l = [line for line in lines
-                 if "per rank (min" in line
-                 and "particle" not in line
-                 and "dropped" not in line]
+        all_l = [
+            line
+            for line in lines
+            if "per rank (min" in line
+            and "particle" not in line
+            and "dropped" not in line
+            and "rpc" not in line
+        ]
 
         for lidx, l in enumerate(all_l):
             mobj = re.search("min: (.*), max: (.*)\)", l)
             wr_min, wr_max = mobj.group(1), mobj.group(2)
             wr_min = humrd_to_num(wr_min)
             wr_max = humrd_to_num(wr_max)
-            all_params[f'epoch{lidx + 1}_wr_min'] = wr_min
-            all_params[f'epoch{lidx + 1}_wr_max'] = wr_max
+            all_params[f"epoch{lidx + 1}_wr_min"] = wr_min
+            all_params[f"epoch{lidx + 1}_wr_max"] = wr_max
 
         load_std = 0
         all_l = [line for line in lines if "normalized load stddev" in line]
@@ -89,8 +107,6 @@ def get_run_params(run_path):
             mobj = re.search("> (.*) particles", l)
             wr_dropped = humrd_to_num(mobj.group(1))
 
-        all_params["wr_min"] = wr_min
-        all_params["wr_max"] = wr_max
         all_params["load_std"] = load_std
         all_params["wr_dropped"] = wr_dropped
 
@@ -149,16 +165,63 @@ def gen_allrun_df(run_dir, rundf_path):
     run_df.to_csv(rundf_path)
 
 
+def gen_allrun_df_suite():
+    run_dir = "/mnt/lt20ad1/deltafs-jobdir"
+    #  run_dir = "/mnt/lt20ad1/carp-jobdir/carp-suite"
+    rundf_name = f"{os.path.basename(run_dir)}.csv"
+    glob_pattern = f"{run_dir}/*/*/log.txt"
+    #  glob_pattern = f"{run_dir}/*/log.txt"
+    all_logs = glob.glob(glob_pattern)
+
+    all_logs = [l for l in all_logs if "deltafs-datascale-old" not in l]
+
+    all_props = []
+    for log in all_logs:
+        try:
+            log_props = get_run_params(log)
+            log_props["runtype"] = os.path.basename(os.path.dirname(os.path.dirname(log)))
+            all_props.append(log_props)
+        except Exception as e:
+            print(f"Failed to parse: {log}. {str(e)}")
+
+    run_df = pd.DataFrame.from_dict(all_props)
+    col_rt = run_df.pop("runtype")
+    run_df.insert(0, col_rt.name, col_rt)
+    print(run_df)
+    print(f"Writing run df to {rundf_name}")
+    run_df.to_csv(rundf_name)
+    pass
+
+
+def run_test():
+    d = "/mnt/lt20ad1/deltafs-jobdir/dfs-reg-suite/deltafs.run1.nranks128.epcnt12/log.txt"
+    d = "/mnt/lt20ad1/deltafs-jobdir/datascale-runs/run3.epcnt12/log.txt"
+    d = "/mnt/lt20ad1/deltafs-jobdir/network-suite/deltafs.run1.nranks512.epcnt6/log.txt"
+    d = "/mnt/lt20ad1/deltafs-jobdir/network-suite/deltafs.run1.nranks64.epcnt1/log.txt"
+    p = get_run_params(d)
+    print(p)
+
+
 def run_gen():
     run_dir = "/mnt/lt20ad1/deltafs-jobdir/datascale-runs"
+    run_dir = "/mnt/lt20ad1/carp-jobdir/carp-suite-repfirst"
+    run_dir = "/mnt/lt20ad1/carp-jobdir/carp-suite-repfirst-scaleranks"
 
-    run_pref = "carp" if "carp-jobdir" in run_dir else "deltafs"
     run_name = run_dir.split("/")[-1]
-    rundf_dir = "/users/ankushj/repos/carp-root/exp-data/20220921"
-    rundf_path = f"{rundf_dir}/{run_pref}-{run_name}.csv"
+    run_pref = "carp" if "carp-jobdir" in run_dir else "deltafs"
+    if run_name.startswith(run_pref):
+        run_pref = ""
+    else:
+        run_pref += "-"
 
-    # get_run_params(run_dir)
-    gen_allrun_df(run_dir, rundf_path)
+    rundf_dir = "/users/ankushj/repos/carp-root/exp-data/20220921"
+    rundf_path = f"{rundf_dir}/{run_pref}{run_name}.csv"
+
+    #  run_dir = "/mnt/lt20ad1/carp-jobdir/carp-suite-repfirst/run1.epcnt12.intvl1000000.pvtcnt2048.drop0"
+    #  get_run_params(run_dir)
+    #  gen_allrun_df(run_dir, rundf_path)
+    gen_allrun_df_suite()
+    #  run_test()
 
 
 if __name__ == "__main__":
