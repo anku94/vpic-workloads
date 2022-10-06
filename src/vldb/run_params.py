@@ -130,24 +130,6 @@ def get_run_params(run_path):
     return all_params
 
 
-def gen_allrun_df_deltafs(run_dir):
-    run_name = run_dir.split("/")[-1]
-
-    all_runs = glob.glob(run_dir + "/deltafs-baseline*")
-
-    all_params = []
-    for run in all_runs:
-        try:
-            params = get_run_params_deltafs(run)
-            all_params.append(params)
-        except Exception as e:
-            print("Failed to parse: {}".format(run))
-
-    run_df = pd.DataFrame.from_dict(all_params)
-    print(run_df)
-    run_df.to_csv("{}.csv".format(run_name))
-
-
 def gen_allrun_df(run_dir, rundf_path):
     all_runs = glob.glob(run_dir + "/run*")
 
@@ -165,21 +147,14 @@ def gen_allrun_df(run_dir, rundf_path):
     run_df.to_csv(rundf_path)
 
 
-def gen_allrun_df_suite():
-    run_dir = "/mnt/lt20ad1/deltafs-jobdir"
-    #  run_dir = "/mnt/lt20ad1/carp-jobdir/carp-suite"
-    rundf_name = f"{os.path.basename(run_dir)}.csv"
-    glob_pattern = f"{run_dir}/*/*/log.txt"
-    #  glob_pattern = f"{run_dir}/*/log.txt"
-    all_logs = glob.glob(glob_pattern)
-
-    all_logs = [l for l in all_logs if "deltafs-datascale-old" not in l]
-
+def gather_alldf_suite_data(all_logs, rundf_abspath):
     all_props = []
     for log in all_logs:
         try:
             log_props = get_run_params(log)
-            log_props["runtype"] = os.path.basename(os.path.dirname(os.path.dirname(log)))
+            log_props["runtype"] = os.path.basename(
+                os.path.dirname(os.path.dirname(log))
+            )
             all_props.append(log_props)
         except Exception as e:
             print(f"Failed to parse: {log}. {str(e)}")
@@ -187,41 +162,80 @@ def gen_allrun_df_suite():
     run_df = pd.DataFrame.from_dict(all_props)
     col_rt = run_df.pop("runtype")
     run_df.insert(0, col_rt.name, col_rt)
-    print(run_df)
-    print(f"Writing run df to {rundf_name}")
-    run_df.to_csv(rundf_name)
-    pass
+
+    run_df.to_csv(rundf_abspath)
+    return run_df
 
 
 def run_test():
-    d = "/mnt/lt20ad1/deltafs-jobdir/dfs-reg-suite/deltafs.run1.nranks128.epcnt12/log.txt"
-    d = "/mnt/lt20ad1/deltafs-jobdir/datascale-runs/run3.epcnt12/log.txt"
-    d = "/mnt/lt20ad1/deltafs-jobdir/network-suite/deltafs.run1.nranks512.epcnt6/log.txt"
     d = "/mnt/lt20ad1/deltafs-jobdir/network-suite/deltafs.run1.nranks64.epcnt1/log.txt"
     p = get_run_params(d)
     print(p)
 
 
-def run_gen():
-    run_dir = "/mnt/lt20ad1/deltafs-jobdir/datascale-runs"
-    run_dir = "/mnt/lt20ad1/carp-jobdir/carp-suite-repfirst"
-    run_dir = "/mnt/lt20ad1/carp-jobdir/carp-suite-repfirst-scaleranks"
+def run_allrun_df_suite():
+    run_dir = None
+    hardcoded_run_dir = "/mnt/lt20ad2/deltafs-jobdir-throttlecheck"
+    hardcoded_rundf_dir = "/users/ankushj/repos/carp-root/exp-data/20221004"
 
-    run_name = run_dir.split("/")[-1]
-    run_pref = "carp" if "carp-jobdir" in run_dir else "deltafs"
-    if run_name.startswith(run_pref):
-        run_pref = ""
+    script_dir = os.path.dirname(os.path.abspath(sys.argv[0]))
+    cwd = os.getcwd()
+
+    if len(sys.argv) > 1:
+        run_dir = sys.argv[1]
+    elif cwd != script_dir:
+        run_dir = cwd
     else:
-        run_pref += "-"
+        run_dir = hardcoded_run_dir
 
-    rundf_dir = "/users/ankushj/repos/carp-root/exp-data/20220921"
-    rundf_path = f"{rundf_dir}/{run_pref}{run_name}.csv"
+    print(f"Using run dir: {run_dir}")
 
-    #  run_dir = "/mnt/lt20ad1/carp-jobdir/carp-suite-repfirst/run1.epcnt12.intvl1000000.pvtcnt2048.drop0"
-    #  get_run_params(run_dir)
-    #  gen_allrun_df(run_dir, rundf_path)
-    gen_allrun_df_suite()
-    #  run_test()
+    def glob_level(level):
+        glob_str = "/*" * level
+        glob_pattern = f"{run_dir}{glob_str}/log.txt"
+
+        print(f"Looking for log.txt files at level {level}... ", end="")
+        all_logs = glob.glob(glob_pattern)
+        if len(all_logs) == 0:
+            print(f"none found")
+            return False, all_logs
+        else:
+            print(f"{len(all_logs)} logs found")
+            return True, all_logs
+
+    logs_found, all_logs = glob_level(1)
+    if not logs_found:
+        logs_found, all_logs = glob_level(2)
+
+    rundf_name = f"{os.path.basename(run_dir)}.csv"
+    rundf_abspath = f"{hardcoded_rundf_dir}/{rundf_name}"
+
+    print(f"\nWriting parsed data to {rundf_abspath}")
+
+    run_df = gather_alldf_suite_data(all_logs, rundf_abspath)
+
+    cols_of_int = [
+        "runtype",
+        "run",
+        "nranks",
+        "epcnt",
+        "intvl",
+        "pvtcnt",
+        "total_io_time",
+    ]
+
+    cols_to_print = [col for col in run_df.columns if col in cols_of_int]
+    rundf_print = run_df[cols_to_print].copy()
+    rundf_print["total_io_time"] /= 1000.0
+    rundf_print = rundf_print.astype({"total_io_time": int})
+    rundf_print = rundf_print.sort_values(cols_to_print)
+    print(rundf_print)
+
+    return
+
+
+def run_gen():
+    run_allrun_df_suite()
 
 
 if __name__ == "__main__":
