@@ -1,4 +1,6 @@
 import matplotlib.pyplot as plt
+from matplotlib.ticker import MultipleLocator
+from matplotlib.lines import Line2D
 import os
 import pandas as pd
 
@@ -53,28 +55,51 @@ def plot_rtp_lat_orig(eval_dir: str, save: False):
 
 
 def plot_rtp_lat_wpvtcnt(plot_dir: str, save: False):
-    latdata_path = '/Users/schwifty/Repos/workloads/rundata/20220915-rtpbench-throttledruns/rtp-bench-runs-ipoib.csv'
+    # latdata_path = '/Users/schwifty/Repos/workloads/rundata/20220915-rtpbench-throttledruns/rtp-bench-runs-ipoib.csv'
+    latdata_path = '/Users/schwifty/Repos/workloads/rundata/20221020-roofline-throttlecheck/rtp-bench-runs-all.csv'
     df = pd.read_csv(latdata_path)
+    print(df.columns)
+    df_mask = (df['rounds'] == 10) & (df['rwarmup'] == 10)
+    df = df[df_mask]
+
+    hg_proto = "bmi+tcp"
+    df_mask = (df['hg_proto'] == hg_proto)
+    df = df[df_mask]
     print(df)
 
+    hg_protostr = {
+        "bmi+tcp": "ipoib_bmitcp",
+        "psm+psm": "psm"
+    }[hg_proto]
+    print(hg_protostr)
+
     fig, ax = plt.subplots(1, 1)
-    all_npivots = sorted(df['npivots'].unique())
 
     wo8192 = False
-    plot_fname = 'rtp.latvspvtcnt.pdf'
+    plot_fname = f'rtp.latvspvtcnt.{hg_protostr}'
+    plot_title = f'RTP Round Latency: {hg_protostr}'
+    save = True
 
-    if wo8192:
-        all_npivots = all_npivots[:-1]
-        plot_fname = 'rtp.latvspvtcnt.wo8192.pdf'
+    hg_poll_linestyle = {
+        0: '-o',
+        1: '--s'
+    }
 
-    for npivots in all_npivots:
-        print(npivots)
-        df_plot = df[df['npivots'] == npivots]
-        data_x = df_plot['nranks']
-        data_y = df_plot['mean']
-        ls = '-o'
-        label = '{} pivots'.format(npivots)
-        ax.plot(data_x, data_y, ls, label=label)
+    for hg_poll in df["hg_poll"].unique():
+        df_plot = df[df["hg_poll"] == hg_poll]
+        all_npivots = sorted(df['npivots'].unique())
+        if wo8192:
+            all_npivots = all_npivots[:-1]
+            plot_fname = f'{plot_fname}.wo8192'
+
+        for npivots in all_npivots:
+            print(npivots)
+            df_plot_pvt = df_plot[df_plot['npivots'] == npivots]
+            data_x = df_plot_pvt['nranks']
+            data_y = df_plot_pvt['mean']
+            ls = hg_poll_linestyle[hg_poll]
+            label = '{} pivots'.format(npivots)
+            ax.plot(data_x, data_y, ls, label=label)
 
     # df_std = df[df['rounds'] == 100]
     # data_y1 = df_std['mean'] - df_std['std']
@@ -83,6 +108,7 @@ def plot_rtp_lat_wpvtcnt(plot_dir: str, save: False):
     #
     # ax.fill_between(data_x, data_y1, data_y2, facecolor='green', alpha=0.1)
 
+    ax.set_ylim([0, 600000])
     ax.set_xscale('log')
     xticks = df['nranks'].unique()
     ax.set_xticks(xticks)
@@ -90,14 +116,29 @@ def plot_rtp_lat_wpvtcnt(plot_dir: str, save: False):
     ax.set_xticklabels([str(i) for i in xticks])
     ax.yaxis.set_major_formatter(lambda x, pos: '{:.0f}ms'.format(x / 1000))
 
-    ax.set_title('RTP Round Latency')
+    ax.set_title(plot_title)
     ax.set_xlabel('Number of Ranks')
     ax.set_ylabel('Time')
 
-    ax.legend(loc='upper left')
+    # ax.legend(loc='upper left', ncol=3)
+    custom_lines = [
+        Line2D([0], [0], linestyle='-', label='HG_POLL=OFF'),
+        Line2D([0], [0], linestyle='--', label='HG_POLL=ON')
+    ]
+
+    if (hg_proto == "bmi+tcp"):
+        ax.legend(loc='upper left')
+    else:
+        ax.legend(handles=custom_lines, loc='upper left')
+
+    fig.tight_layout()
+
+    ax.yaxis.set_minor_locator(MultipleLocator(25000))
+    ax.yaxis.grid(b=True, which="major", color="#aaa")
+    ax.yaxis.grid(b=True, which="minor", color="#ddd")
 
     if save:
-        fig.savefig('{}/{}'.format(plot_dir, plot_fname), dpi=600)
+        fig.savefig('{}/{}.pdf'.format(plot_dir, plot_fname), dpi=600)
     else:
         fig.show()
 
@@ -110,6 +151,7 @@ def run_plot_rtpbench(plot_dir):
 
 if __name__ == "__main__":
     plot_dir = "/Users/schwifty/Repos/workloads/rundata/20220915-rtpbench-throttledruns"
+    plot_dir = "/Users/schwifty/Repos/workloads/rundata/20221020-roofline-throttlecheck"
 
     if not os.path.exists(plot_dir):
         os.mkdir(plot_dir)
