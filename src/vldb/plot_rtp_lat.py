@@ -4,7 +4,7 @@ from matplotlib.lines import Line2D
 import os
 import pandas as pd
 
-from common import plot_init
+from common import plot_init_bigfont as plot_init
 
 
 def plot_rtp_lat_orig(eval_dir: str, save: False):
@@ -57,9 +57,11 @@ def plot_rtp_lat_orig(eval_dir: str, save: False):
 def plot_rtp_lat_wpvtcnt(plot_dir: str, save: False):
     # latdata_path = '/Users/schwifty/Repos/workloads/rundata/20220915-rtpbench-throttledruns/rtp-bench-runs-ipoib.csv'
     latdata_path = '/Users/schwifty/Repos/workloads/rundata/20221020-roofline-throttlecheck/rtp-bench-runs-all.csv'
+    latdata_path = "/Users/schwifty/Repos/workloads/rundata/20221027-roofline-strongscale/rtp-bench-runs-bmi.csv"
+
     df = pd.read_csv(latdata_path)
     print(df.columns)
-    df_mask = (df['rounds'] == 10) & (df['rwarmup'] == 10)
+    df_mask = (df['rounds'] == 10) & (df['rwarmup'] == 5)
     df = df[df_mask]
 
     hg_proto = "bmi+tcp"
@@ -116,9 +118,9 @@ def plot_rtp_lat_wpvtcnt(plot_dir: str, save: False):
     ax.set_xticklabels([str(i) for i in xticks])
     ax.yaxis.set_major_formatter(lambda x, pos: '{:.0f}ms'.format(x / 1000))
 
-    ax.set_title(plot_title)
+    # ax.set_title(plot_title)
     ax.set_xlabel('Number of Ranks')
-    ax.set_ylabel('Time')
+    ax.set_ylabel('Renegotiation Round Latency')
 
     # ax.legend(loc='upper left', ncol=3)
     custom_lines = [
@@ -127,7 +129,7 @@ def plot_rtp_lat_wpvtcnt(plot_dir: str, save: False):
     ]
 
     if (hg_proto == "bmi+tcp"):
-        ax.legend(loc='upper left')
+        ax.legend(loc='upper left', fontsize=14)
     else:
         ax.legend(handles=custom_lines, loc='upper left')
 
@@ -139,19 +141,21 @@ def plot_rtp_lat_wpvtcnt(plot_dir: str, save: False):
 
     if save:
         fig.savefig('{}/{}.pdf'.format(plot_dir, plot_fname), dpi=600)
+        # fig.savefig('{}/{}.png'.format(plot_dir, plot_fname), dpi=600)
     else:
         fig.show()
 
 
 def run_plot_rtpbench(plot_dir):
     # plot_rtp_lat_orig(plot_dir, False)
-    plot_rtp_lat_wpvtcnt(plot_dir, True)
+    plot_rtp_lat_wpvtcnt(plot_dir, False)
     pass
 
 
 if __name__ == "__main__":
     plot_dir = "/Users/schwifty/Repos/workloads/rundata/20220915-rtpbench-throttledruns"
     plot_dir = "/Users/schwifty/Repos/workloads/rundata/20221020-roofline-throttlecheck"
+    plot_dir = "/Users/schwifty/Repos/workloads/rundata/20221030-misc-plots"
 
     if not os.path.exists(plot_dir):
         os.mkdir(plot_dir)

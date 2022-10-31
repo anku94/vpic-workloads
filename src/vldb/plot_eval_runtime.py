@@ -2,13 +2,14 @@
 
 import matplotlib.pyplot as plt
 from matplotlib.ticker import MultipleLocator
+import glob
 import numpy as np
 import os
 import pandas as pd
 import re
 import sys
 
-from common import plot_init
+from common import plot_init_bigfont as plot_init
 
 
 def std(s):
@@ -474,7 +475,8 @@ def plot_roofline_internal_io(df, df_getrun, ax):
         else:
             df_tmp = df
         df_params = pd.DataFrame(param_dict)
-        df_params = df_params.merge(df_tmp, on=df_params.columns.to_list(), how="left")
+        df_params = df_params.merge(df_tmp, on=df_params.columns.to_list(),
+                                    how="left")
         # print(df_params)
         dx, dy = df_getrun(df_params, key, mask_in=None)
         return dx, dy
@@ -512,73 +514,140 @@ def plot_roofline_internal_io(df, df_getrun, ax):
     ax.set_title('IO-Only Xput W/ DeltaFS-IMD')
 
 
-def plot_roofline_internal_wcarp(df, df_getrun, ax):
+def plot_roofline_internal_wcarp(df, df_getrun, df_getrun_noaggr, ax):
     prop_cycle = plt.rcParams['axes.prop_cycle']
     colors = [c for c in prop_cycle.by_key()['color']]
 
-    key = "dfs-ioonly"
-    label = "Max I/O Xput"
-    dx, dy = df_getrun(df, key)
-    linecolor = colors[5]
-    ax.plot(dx.astype(str), dy, label=label, marker='o', color=linecolor)
+    # key = "network-suite"
+    # label = "Max Shuffle Xput (IPoIB, RPC16K)"
+    # dx, dy = df_getrun(df, key)
+    # linecolor = colors[1]
+    # ax.plot(dx.astype(str), dy, label=label, marker='o', color=linecolor)
+    #
+    # key = "dfs-ioonly"
+    # label = "Max I/O Xput"
+    # dx, dy = df_getrun(df, key)
+    # linecolor = colors[5]
+    # ax.plot(dx.astype(str), dy, label=label, marker='o', color=linecolor)
 
-    key = "dfs-seq-suite"
-    label = "DeltaFS + IMD + NoFilter"
-    dx, dy = df_getrun(df, key)
-    linecolor = colors[6]
+    # key = "dfs-seq-suite"
+    # label = "DeltaFS + IMD + NoFilter"
+    # dx, dy = df_getrun(df, key)
+    # linecolor = colors[6]
     # ax.plot(dx.astype(str), dy, label=label, marker='o', color=linecolor)
 
     key = "dfs-reg-suite"
-    label = "DeltaFS + IMD + BloomFilter"
+    label = "DeltaFS"
     dx, dy = df_getrun(df, key)
-    linecolor = colors[7]
-    # ax.plot(dx.astype(str), dy, label=label, marker='o', color=linecolor)
+    linecolor = colors[2]
+    ax.plot(dx.astype(str), dy, label=label, marker='o', color=linecolor)
 
-    key = "carp-suite"
-    label = "CARP"
-    dx, dy = df_getrun(df, key)
-    linecolor = colors[8]
+    # key = "carp-suite"
+    # label = "CARP"
+    # dx, dy = df_getrun(df, key)
+    # linecolor = colors[8]
     # ax.plot(dx.astype(str), dy, label=label, marker='^', linewidth=2, ms=6,
     #         color=linecolor)
 
     key = "carp-suite-intraepoch-nowrite"
-    label = "CARP - NoWrite"
+    label = "CARP - Shuffle Only"
     dx, dy = df_getrun(df, key)
     linecolor = colors[9]
+    ax.plot(dx.astype(str), dy, label=label, marker='o', linewidth=2, ms=6,
+            color=linecolor)
+
+    # key = "carp-suite-intraepoch"
+    # label = "CARP"
+    # dx, dy = df_getrun(df, key)
+    # linecolor = colors[9]
     # ax.plot(dx.astype(str), dy, label=label, marker='^', linewidth=2, ms=6,
     #         color=linecolor)
+
+    # key = "carp-suite-intraepoch"
+    # label = "CARP"
+    # dx, dy = df_getrun_noaggr(df, key)
+    # linecolor = colors[9]
+    # ax.plot(dx.astype(str), dy, 'x', ms=6, color=linecolor)
+
+    key = "carp-suite-intraepoch-skipsort"
+    label = "CARP - With I/O"
+    dx, dy = df_getrun(df, key)
+    linecolor = colors[0]
+    ax.plot(dx.astype(str), dy, label=label, marker='o', linewidth=2, ms=6,
+            color=linecolor)
+
+    # key = "carp-suite-intraepoch-skipsort"
+    # label = "CARP NoSort"
+    # dx, dy = df_getrun_noaggr(df, key)
+    # linecolor = colors[0]
+    # ax.plot(dx.astype(str), dy, 'x', ms=6, color=linecolor)
+
+    # ax.set_title('Rooflines - CARP vs DeltaFS and NW/IO Bounds')
+
+    pass
+
+
+def plot_roofline_internal_addshadedreg(df, df_getrun, ax):
+    key = "dfs-ioonly"
+    dx, dy = df_getrun(df, key)
+    # ax.fill_between(dx.astype(str), dy, 0, hatch='/', color="none",
+    #                 edgecolor="b",
+    #                 linewidth=1, alpha=0.2)
+    ax.fill_between(dx.astype(str), dy, 0, color="cyan", edgecolor="b",
+                    linewidth=0, alpha=0.2, label="Storage Bound")
+
+    key = "network-suite"
+    dx, dy = df_getrun(df, key)
+    # ax.fill_between(dx.astype(str), dy, 0, hatch='\\', color="none",
+    #                 edgecolor="b",
+    #                 linewidth=1, alpha=0.2)
+    ax.fill_between(dx.astype(str), dy, 0, color="yellow", edgecolor="b",
+                    linewidth=0, alpha=0.3, label="Network Bound")
+
+
+def plot_tritonsort(df, df_getrun, ax):
+    prop_cycle = plt.rcParams['axes.prop_cycle']
+    colors = [c for c in prop_cycle.by_key()['color']]
+
+    ts_sort_per200 = 3360 / 12.0
+    size_ep_g = (6.55 * 1e6 * 60 * 512) / (2 ** 30)
+    time_ts_sort = ts_sort_per200 * size_ep_g / 200.0
+    print(time_ts_sort)  # ---- time needed for one epoch
+
+    time_ioonly = df[(df['runtype'] == 'dfs-ioonly') & (df['nranks'] == 512)][
+        'total_io_time'].mean().tolist()
+    time_ioonly /= 1000
+    # time_ioonly = time_ioonly[4:]
+    print(time_ioonly)
+    data_mb = size_ep_g * (2 ** 10)
+    time_total = time_ioonly + time_ts_sort
+
+    bw_ts_mbps = data_mb / time_total
+    data_x, data_y = df_getrun(df, 'dfs-ioonly')
+    ax.plot(data_x.astype(str), [bw_ts_mbps] * len(data_x), '-o',
+            label='TritonSort', color=colors[3])
     pass
 
 
 def plot_roofline(plot_dir, df, save=False):
     fig, ax = plt.subplots(1, 1)
 
-    plot_type = 0
-
-    def df_getrun(run_df, runtype, mask_in=None):
-        mask = (run_df["runtype"] == runtype)
-        if mask_in is not None:
-            mask = mask & mask_in
-
-        run_df = run_df[mask]
-
-        run_df = preprocess_allrun_df(run_df)
-        run_df = run_df.groupby(['nranks', 'epcnt'], as_index=False).agg({
-            'total_io_time_mean': 'mean'
-        })
-
-        # print(run_df)
-
+    def get_bw_mbps(runtype, run_df):
         run_nranks = run_df['nranks']
-        run_time = run_df['total_io_time_mean']
+        if 'total_io_time_mean' in run_df.columns:
+            run_time = run_df['total_io_time_mean']
+        else:
+            run_time = run_df['total_io_time']
         run_epcnt = run_df['epcnt']
 
+        data_1r1ep_bytes = (6.55 * 1e6 * 60)
+
         time_s = run_time / 1e3
-        data_bytes = run_nranks * (6.55 * 1e6 * 60) * run_epcnt
+        data_bytes = run_nranks * run_epcnt * data_1r1ep_bytes
         data_mb = data_bytes / (2 ** 20)
         bw_mbps = data_mb / time_s
 
-        data_x = run_nranks if plot_type == 0 else run_epcnt
+        data_x = run_nranks
         data_y = bw_mbps
 
         time_s_str = ', '.join(
@@ -588,24 +657,49 @@ def plot_roofline(plot_dir, df, save=False):
         bw_y = ', '.join(data_y.astype(int).astype(str))
         print(f"[df_getrun] [bw_x] {bw_x}")
         print(f"[df_getrun] [bw_y] {bw_y}")
-        # print(data_x, data_y)
         return data_x, data_y
+
+    def df_getrun(run_df, runtype, mask_in=None):
+        mask = (run_df["runtype"] == runtype)
+        if mask_in is not None:
+            mask = mask & mask_in
+
+        run_df = run_df[mask]
+        run_df = preprocess_allrun_df(run_df)
+        run_df = run_df.groupby(['nranks', 'epcnt'], as_index=False).agg({
+            'total_io_time_mean': 'mean'
+        })
+        print(run_df)
+        return get_bw_mbps(runtype, run_df)
+
+    def df_getrun_noaggr(run_df, runtype, mask_in=None):
+        mask = (run_df["runtype"] == runtype)
+        if mask_in is not None:
+            mask = mask & mask_in
+
+        run_df = run_df[mask]
+        return get_bw_mbps(runtype, run_df)
 
     file_name_noext = "roofline.wcarp"
     # file_name_noext = "roofline.shufs"
-    file_name_noext = "roofline.ioonly"
-    save = True
+    # file_name_noext = "roofline.ioonly"
+    # save = True
+    file_name_noext = "runtime.v4"
 
     # plot_roofline_internal_nw(df, df_getrun, ax)
-    plot_roofline_internal_io(df, df_getrun, ax)
-    # plot_roofline_internal_warp(df, df_getrun, ax)
+    # plot_roofline_internal_io(df, df_getrun, ax)
+    plot_roofline_internal_addshadedreg(df, df_getrun, ax)
+    plot_roofline_internal_wcarp(df, df_getrun, df_getrun_noaggr, ax)
+    plot_tritonsort(df, df_getrun, ax)
 
-    ax.legend()
+    leg = ax.legend(ncol=2, fontsize=13, framealpha=0.5, loc="upper left", bbox_to_anchor=(-0.02, 1.1))
+    leg.legendHandles[-2].set(ec='black', linewidth=1)
+    leg.legendHandles[-1].set(ec='black', linewidth=1)
 
     """
     Formatting
     """
-    x_label = "Num Ranks" if plot_type == 0 else "Num Epochs"
+    x_label = "Number of Ranks"
     ax.set_xlabel(x_label)
     ax.set_ylabel('Effective Bandwidth')
     ax.yaxis.set_minor_locator(MultipleLocator(256))
@@ -613,7 +707,7 @@ def plot_roofline(plot_dir, df, save=False):
     ax.yaxis.set_major_formatter(lambda x, pos: '{:.0f} GB/s'.format(x / 1024))
     # ax.set_ylim([0, ax.get_ylim()[1]])
     ax.set_ylim([0, 4096])
-    ax.set_ylim([0, 8192 + 1024])
+    ax.set_ylim([0, 1024 * 7])
     ax.yaxis.grid(b=True, which='major', color='#aaa')
     ax.yaxis.grid(b=True, which='minor', color='#ddd')
     # ax.set_title('Scaling Ranks (CARP vs Others)')
@@ -621,7 +715,7 @@ def plot_roofline(plot_dir, df, save=False):
 
     fig.tight_layout()
     if save:
-        fig.savefig(f'{plot_dir}/{file_name_noext}.png', dpi=300)
+        fig.savefig(f'{plot_dir}/{file_name_noext}.pdf', dpi=300)
     else:
         fig.show()
     # fig.show()
@@ -629,12 +723,52 @@ def plot_roofline(plot_dir, df, save=False):
     pass
 
 
-def prep_data_sources(all_files, rootdir=None):
+def filter_params(df, params):
+    df_params = pd.DataFrame(params)
+    df_params = df_params.merge(df, on=df_params.columns.to_list(),
+                                how="left")
+    return df_params
+
+
+def filter_strongscale(df):
+    print("\n--- Applying Strongscale Filter ---")
+    params_strongscale = {
+        'nranks': [32, 64, 128, 256, 512],
+        'epcnt': [12, 12, 6, 3, 1]
+    }
+
+    df_params = filter_params(df, params_strongscale)
+
+    print(df_params)
+    return df_params
+
+
+def filter_weakscale(df):
+    print("\n--- Applying Weakscale Filter ---")
+    params_weakscale = {
+        'nranks': [16, 32, 64, 128, 256, 512],
+        'epcnt': [12, 12, 12, 12, 12, 12]
+    }
+
+    df_params = filter_params(df, params_weakscale)
+
+    return df_params
+
+
+def prep_data_sources(rootdir=None):
+    all_files = glob.glob(rootdir + "/*.csv")
+    all_files = [f for f in all_files if "simpl" not in f]
+    all_files = [f for f in all_files if "deltafs" in f or "carp" in f]
+
+    print(f"Scanning Root dir: {rootdir}... {len(all_files)} files found.")
+    for idx, f in enumerate(all_files):
+        print(f"[{idx}] {os.path.basename(f)}")
+
     all_dfs = []
 
     for fname in all_files:
         if rootdir:
-            fpath = f'{rootdir}/{fname}'
+            fpath = f'{rootdir}/{os.path.basename(fname)}'
         else:
             fpath = fname
         file_df = pd.read_csv(fpath, index_col=None)
@@ -645,7 +779,7 @@ def prep_data_sources(all_files, rootdir=None):
 
     df = pd.concat(all_dfs)
     runs_in_suite = '\n'.join(df['runtype'].unique())
-    print(f'[Runs in suite]: \n{runs_in_suite}\n----')
+    print(f'\n[Runs in suite]: \n{runs_in_suite}\n----')
 
     return df
 
@@ -684,34 +818,35 @@ def run_plot_intvlwise_from_dfall(df_all, plot_dir):
     return
 
 
-def run_plot_roofline(plot_dir):
+def run_plot_roofline():
     df_all_dir = "/Users/schwifty/Repos/workloads/rundata/20220926-roofline"
     df_all_dir = "/Users/schwifty/Repos/workloads/rundata/20221020-roofline-throttlecheck"
-    df_all_dir = "/Users/schwifty/Repos/workloads/rundata/20221025-roofline-ioexp"
+    df_all_dir_a = "/Users/schwifty/Repos/workloads/rundata/20221025-roofline-ioexp"
+    df_all_dir_b = "/Users/schwifty/Repos/workloads/rundata/20221027-roofline-strongscale"
+    df_1024_dir = "/Users/schwifty/Repos/workloads/rundata/20221030-misc-plots"
+    plot_dir = "/Users/schwifty/Repos/workloads/rundata/20221030-misc-plots"
+    plot_dir = "/Users/schwifty/Repos/carp/carp-paper/figures/eval"
 
-    all_files = [
-        "lt20ad1_carp_jobdir_throttlecheck.csv",
-        "lt20ad1_deltafs_jobdir_throttlecheck.csv",
-        "lt20ad2_carp_jobdir_throttlecheck.csv",
-        "lt20ad2_deltafs_jobdir_throttlecheck.csv",
-    ]
+    df_all = pd.concat([
+        prep_data_sources(df_all_dir_a),
+        prep_data_sources(df_all_dir_b),
+    ])
 
-    df_all = prep_data_sources(all_files, df_all_dir)
-    # df_all_dropcond = df_all[(df_all["run"] == 1) & (df_all["runtype"] == "network-suite")].index
-    # df_all.drop(df_all_dropcond, inplace=True)
-    # df_all = preprocess_allrun_df(df_all)
+    df_1024 = prep_data_sources(df_1024_dir)
+    df_1024 = df_1024[df_1024['nranks'] == 1024]
+    df_1024['epcnt'] /= 2.0
 
-    # print(df_all)
-    plot_roofline(df_all_dir, df_all, save=False)
+    df_all = pd.concat([df_all, df_1024])
+
+    df_ss = filter_strongscale(df_all)
+    plot_roofline(plot_dir, df_ss, save=False)
     # TODO: df_all no longer preprocessed outside
     # run_plot_intvlwise_from_dfall(df_all, df_all_dir)
 
 
 if __name__ == "__main__":
-    plot_dir = "/Users/schwifty/Repos/workloads/rundata/20221020-roofline-throttlecheck"
-
-    if not os.path.exists(plot_dir):
-        os.mkdir(plot_dir)
+    # if not os.path.exists(plot_dir):
+    #     os.mkdir(plot_dir)
 
     plot_init()
-    run_plot_roofline(plot_dir)
+    run_plot_roofline()
