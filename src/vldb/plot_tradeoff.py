@@ -8,6 +8,7 @@ import re
 import sys
 
 from common import plot_init_bigfont as plot_init
+from common import PlotSaver
 
 
 def make3x3(ax, colors_x, colors_y):
@@ -158,7 +159,7 @@ def plot_tradeoff_2():
 
     ax.plot([0.15], [0.9], marker='o', mew='2', mec='black', ms='12',
             label='Online Indexes', color=colors[1])
-    ax.annotate('Online Indexes', xy=(0.15, 0.9), xycoords='data',
+    ax.annotate('Online Index (Distributed DBs)', xy=(0.15, 0.9), xycoords='data',
                 xytext=(0.3, 0.9), textcoords='data',
                 arrowprops=dict(facecolor='black', shrink=0.2),
                 ha='left', va='center',
@@ -176,49 +177,58 @@ def plot_tradeoff_2():
 
     # ----- Slalom -----
 
-    ax.plot([0.8], [0.05], marker='o', mew='2', mec='black', ms='12',
-            label='Slalom', color=colors[3])
-    ax.annotate('', xy=(0.65, 0.10), xycoords='data',
-                xytext=(0.8, 0.05), textcoords='data',
-                arrowprops=dict(arrowstyle="->",
-                                connectionstyle="arc3,rad=-0.05",
-                                linestyle='--', shrinkA=10, shrinkB=10),
+    # ax.plot([0.8], [0.05], marker='o', mew='2', mec='black', ms='12',
+    #         label='Slalom', color=colors[3])
+    # ax.annotate('', xy=(0.65, 0.10), xycoords='data',
+    #             xytext=(0.8, 0.05), textcoords='data',
+    #             arrowprops=dict(arrowstyle="->",
+    #                             connectionstyle="arc3,rad=-0.05",
+    #                             linestyle='--', shrinkA=10, shrinkB=10),
+    #             ha='left', va='center',
+    #             )
+    # ax.plot([0.65], [0.10], marker='o', mew='2', mec='black', ms='12',
+    #         label='Slalom', color=colors[3], alpha=0.7)
+    # ax.annotate('', xy=(0.5, 0.18), xycoords='data',
+    #             xytext=(0.65, 0.10), textcoords='data',
+    #             arrowprops=dict(arrowstyle="->",
+    #                             connectionstyle="arc3,rad=-0.05",
+    #                             linestyle='--', shrinkA=10, shrinkB=10),
+    #             ha='left', va='center',
+    #             )
+    # ax.plot([0.5], [0.18], marker='o', mew='2', mec='black', ms='12',
+    #         label='Slalom', color=colors[3], alpha=0.5)
+    #
+    # ax.annotate('Slalom ($t_0$)', xy=(0.8, 0.05), xycoords='data',
+    #             xytext=(0.8, 0.22), textcoords='data',
+    #             arrowprops=dict(facecolor='black', shrink=0.2),
+    #             ha='center', va='center',
+    #             )
+    #
+    # ax.annotate('Slalom ($t_1$)', xy=(0.65, 0.10), xycoords='data',
+    #             xytext=(0.65, 0.30), textcoords='data',
+    #             arrowprops=dict(facecolor='black', shrink=0.2),
+    #             ha='center', va='center',
+    #             )
+    #
+    # ax.annotate('Slalom ($t_2$)', xy=(0.5, 0.18), xycoords='data',
+    #             xytext=(0.5, 0.38), textcoords='data',
+    #             arrowprops=dict(facecolor='black', shrink=0.2),
+    #             ha='center', va='center',
+    #             )
+
+    # ----- DeltaFS -----
+    ax.plot([0.12], [0.04], marker='o', mew='2', mec='black', ms='12',
+            label='DeltaFS', color=colors[5])
+    ax.annotate('DeltaFS (Point Queries)', xy=(0.12, 0.03), xycoords='data',
+                xytext=(0.25, 0.03), textcoords='data',
+                arrowprops=dict(facecolor='black', shrink=0.25),
                 ha='left', va='center',
-                )
-    ax.plot([0.65], [0.10], marker='o', mew='2', mec='black', ms='12',
-            label='Slalom', color=colors[3], alpha=0.7)
-    ax.annotate('', xy=(0.5, 0.18), xycoords='data',
-                xytext=(0.65, 0.10), textcoords='data',
-                arrowprops=dict(arrowstyle="->",
-                                connectionstyle="arc3,rad=-0.05",
-                                linestyle='--', shrinkA=10, shrinkB=10),
-                ha='left', va='center',
-                )
-    ax.plot([0.5], [0.18], marker='o', mew='2', mec='black', ms='12',
-            label='Slalom', color=colors[3], alpha=0.5)
-
-    ax.annotate('Slalom ($t_0$)', xy=(0.8, 0.05), xycoords='data',
-                xytext=(0.8, 0.22), textcoords='data',
-                arrowprops=dict(facecolor='black', shrink=0.2),
-                ha='center', va='center',
-                )
-
-    ax.annotate('Slalom ($t_1$)', xy=(0.65, 0.10), xycoords='data',
-                xytext=(0.65, 0.30), textcoords='data',
-                arrowprops=dict(facecolor='black', shrink=0.2),
-                ha='center', va='center',
-                )
-
-    ax.annotate('Slalom ($t_2$)', xy=(0.5, 0.18), xycoords='data',
-                xytext=(0.5, 0.38), textcoords='data',
-                arrowprops=dict(facecolor='black', shrink=0.2),
-                ha='center', va='center',
                 )
 
     # ----- CARP -----
     ax.plot([0.15], [0.1], marker='o', mew='2', mec='black', ms='16',
             label='CARP', color=colors[4])
-    ax.annotate('CARP', xy=(0.15, 0.1), xycoords='data',
+    ax.annotate('CARP (Range Queries)', xy=(0.15, 0.1), xycoords='data',
                 xytext=(0.3, 0.1), textcoords='data',
                 arrowprops=dict(facecolor='black', shrink=0.25),
                 ha='left', va='center',
@@ -239,13 +249,7 @@ def plot_tradeoff_2():
 
     fig.tight_layout()
 
-    save = True
-    if save:
-        plot_dir = "/Users/schwifty/Repos/carp/carp-paper/figures/bg"
-        fig.savefig(f"{plot_dir}/tradeoff_matrix_2.pdf", dpi=300)
-    else:
-        fig.show()
-    pass
+    PlotSaver.save(fig, "wherever", "tradeoff_matrix_2")
 
 
 def run_plot():

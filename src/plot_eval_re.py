@@ -7,6 +7,7 @@ import pandas as pd
 import scipy.stats as st
 from matplotlib.ticker import (MultipleLocator, AutoMinorLocator)
 from typing import List, Tuple
+from vldb.common import PlotSaver
 
 
 def plot_runtime_alt_2(dir: str, save: bool = False) -> None:
@@ -279,6 +280,12 @@ def plot_query_latvssel_unified(dir: str, save: bool = False):
     cm = plt.cm.get_cmap('Set2')
 
     markers = ['s', 'o', 'D', '^']
+    all_labels = [
+        "DeltaFS/FullScan",
+        "FastQuery", "TritonSort", "CARP"
+    ]
+    all_colors = list(cm.colors)
+    all_msz = [ 16, 14, 14, 14 ]
 
     for type, df in enumerate([df_carp, df_flat, df_fq, df_scan]):
         rowidx = 0
@@ -291,10 +298,13 @@ def plot_query_latvssel_unified(dir: str, save: bool = False):
                 data_y = row['time']
 
             marker = markers[type]
+            # color per query
             color = cm.colors[rowidx % 8]
+            # color per type
+            color = all_colors[type]
 
             ax.plot(data_x, data_y, marker=marker, mec='black', mfc=color,
-                    markersize=14)
+                    markersize=all_msz[type], label=all_labels[type])
             if type < 3:
                 ax.errorbar(data_x, data_y, yerr=data_err, color=color)
 
@@ -302,16 +312,21 @@ def plot_query_latvssel_unified(dir: str, save: bool = False):
 
     legend_items = []
     legend_items.append(
-        plt.Line2D([0], [0], marker='^', label='FullScan', markersize=12))
+        plt.Line2D([0], [0], marker='^', mfc=all_colors[3],
+                   label='DeltaFS/FullScan', mec='black',
+                   markersize=12))
     legend_items.append(
-        plt.Line2D([0], [0], marker='D', label='FastQuery', markersize=12))
+        plt.Line2D([0], [0], marker='D', mfc=all_colors[2], mec='black', label='FastQuery',
+                   markersize=12))
     legend_items.append(
-        plt.Line2D([0], [0], marker='o', label='TritonSort', markersize=12))
+        plt.Line2D([0], [0], marker='o', mfc=all_colors[1], mec='black', label='TritonSort',
+                   markersize=12))
     legend_items.append(
-        plt.Line2D([0], [0], marker='s', label='CARP', markersize=12))
+        plt.Line2D([0], [0], marker='s', mfc=all_colors[0], mec='black', label='CARP',
+                   markersize=12))
 
     ax.legend(handles=legend_items, fontsize=18, loc="lower left",
-              bbox_to_anchor=(0.51, -0.01))
+              bbox_to_anchor=(0.41, -0.03), ncol=1)
 
     ax.set_yscale('log')
     yticks = [0.04, 0.2, 1, 5, 25, 125]
@@ -349,10 +364,8 @@ def plot_query_latvssel_unified(dir: str, save: bool = False):
     ax.yaxis.grid(True, color='#ddd', which='minor')
 
     fig.tight_layout()
-    if save:
-        fig.savefig(dir + '/qlatvssel.v5.pdf', dpi=600)
-    else:
-        fig.show()
+    fname = "qlatvssel.v6"
+    PlotSaver.save(fig, "wherever", fname)
 
 
 def plot_query_ycsb(dir: str, save: bool = False) -> None:
@@ -790,15 +803,13 @@ def plot_intvl_runtime_2(dir: str, save: bool = False) -> None:
         fig.show()
 
 
-
-
 def run(eval_dir):
     # plot_runtime_alt_2(eval_dir, True)
-    # plot_query_latvssel_unified(eval_dir, True)
+    plot_query_latvssel_unified(eval_dir, False)
     # plot_query_ycsb(eval_dir, True)
     # plot_subpart_perf_abs(eval_dir, True)
     # plot_intvl_runtime_2(eval_dir, True)
-    plot_rtp_lat(eval_dir, True)
+    # plot_rtp_lat(eval_dir, True)
 
 
 if __name__ == '__main__':

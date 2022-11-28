@@ -4,7 +4,7 @@ from matplotlib.lines import Line2D
 import os
 import pandas as pd
 
-from common import plot_init_bigfont as plot_init
+from common import plot_init_bigfont as plot_init, PlotSaver
 
 
 def plot_rtp_lat_orig(eval_dir: str, save: False):
@@ -79,8 +79,8 @@ def plot_rtp_lat_wpvtcnt(plot_dir: str, save: False):
 
     wo8192 = False
     plot_fname = f'rtp.latvspvtcnt.{hg_protostr}'
+    plot_fname = f'rtp.latvspvtcnt'
     plot_title = f'RTP Round Latency: {hg_protostr}'
-    save = True
 
     hg_poll_linestyle = {
         0: '-o',
@@ -139,16 +139,12 @@ def plot_rtp_lat_wpvtcnt(plot_dir: str, save: False):
     ax.yaxis.grid(b=True, which="major", color="#aaa")
     ax.yaxis.grid(b=True, which="minor", color="#ddd")
 
-    if save:
-        fig.savefig('{}/{}.pdf'.format(plot_dir, plot_fname), dpi=600)
-        # fig.savefig('{}/{}.png'.format(plot_dir, plot_fname), dpi=600)
-    else:
-        fig.show()
+    PlotSaver.save(fig, plot_dir, plot_fname)
 
 
 def run_plot_rtpbench(plot_dir):
     # plot_rtp_lat_orig(plot_dir, False)
-    plot_rtp_lat_wpvtcnt(plot_dir, False)
+    plot_rtp_lat_wpvtcnt(plot_dir, True)
     pass
 
 
@@ -156,6 +152,7 @@ if __name__ == "__main__":
     plot_dir = "/Users/schwifty/Repos/workloads/rundata/20220915-rtpbench-throttledruns"
     plot_dir = "/Users/schwifty/Repos/workloads/rundata/20221020-roofline-throttlecheck"
     plot_dir = "/Users/schwifty/Repos/workloads/rundata/20221030-misc-plots"
+    plot_dir = "/Users/schwifty/Repos/carp/carp-paper/figures/eval"
 
     if not os.path.exists(plot_dir):
         os.mkdir(plot_dir)

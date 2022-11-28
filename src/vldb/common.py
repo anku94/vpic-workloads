@@ -1,4 +1,6 @@
+import matplotlib.figure as pltfig
 import matplotlib.pyplot as plt
+import sys
 
 
 def plot_init():
@@ -31,3 +33,47 @@ def plot_init_bigfont():
     plt.rc("ytick", labelsize=SMALL_SIZE)  # fontsize of the tick labels
     plt.rc("legend", fontsize=SMALL_SIZE)  # legend fontsize
     plt.rc("figure", titlesize=BIGGER_SIZE)  # fontsize of the figure title
+
+
+class PlotSaver:
+    @staticmethod
+    def save(fig: pltfig.Figure, fpath: str, fname: str):
+        PlotSaver._save_to_fpath(fig, fpath, fname, ext="png", show=True)
+        # PlotSaver._save_to_project(fig, fname)
+        # PlotSaver._save_to_paper(fig, "bg", fname)
+        # PlotSaver._save_unrolled(fig, fpath, fname)
+
+    @staticmethod
+    def _save_to_fpath(fig: pltfig.Figure, fpath: str, fname: str, ext="png",
+                       show=True):
+        full_path = f"{fpath}/{fname}.{ext}"
+        if show:
+            print(f"[PlotSaver] Displaying figure\n")
+            fig.show()
+        else:
+            print(f"[PlotSaver] Writing to {full_path}\n")
+            fig.savefig(full_path, dpi=300)
+
+    @staticmethod
+    def _save_to_paper(fig: pltfig.Figure, fig_type, fname: str):
+        paper_root = "/Users/schwifty/Repos/carp/carp-paper/figures"
+        if fig_type not in ["bg", "design", "impl", "eval"]:
+            print("[PlotSaver] Error: unknown fig type: {fig_type}\n")
+            sys.exit(-1)
+
+        fpath = f"{paper_root}/{fig_type}"
+        PlotSaver._save_to_fpath(fig, fpath, fname, ext="pdf", show=False)
+
+    @staticmethod
+    def _save_to_project(fig, fname: str):
+        fpath = "/Users/schwifty/CMU/18911/documents/PDLR22/carptalk_plots"
+        PlotSaver._save_to_fpath(fig, fpath, fname, ext="pdf", show=False)
+        pass
+
+    @staticmethod
+    def _save_unrolled(fig: pltfig.Figure, fpath: str, fname: str):
+        ax_all = fig.get_axes()
+        ax = ax_all[0]
+        handles, labels = ax.get_legend_handles_labels()
+        handles[0].remove()
+        PlotSaver._save_to_fpath(fig, fpath, fname, show=True)
