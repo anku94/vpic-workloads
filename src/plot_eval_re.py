@@ -5,9 +5,9 @@ import matplotlib.patches as mpatches
 import numpy as np
 import pandas as pd
 import scipy.stats as st
-from matplotlib.ticker import (MultipleLocator, AutoMinorLocator)
+from matplotlib.ticker import (MultipleLocator, AutoMinorLocator, FuncFormatter)
 from typing import List, Tuple
-from vldb.common import PlotSaver
+from vldb.common import PlotSaver, plot_init_bigfont as plot_init
 
 
 def plot_runtime_alt_2(dir: str, save: bool = False) -> None:
@@ -265,7 +265,7 @@ def read_query_csvs(fpath: str):
     return df_carp, df_flat, df_fq, df_scan
 
 
-def plot_query_latvssel_unified(dir: str, save: bool = False):
+def plot_query_latvssel_unified():
     basedir = '/Users/schwifty/Repos/workloads/rundata/eval.re'
     csv_path = basedir + '/querylog.csv'
     csv_scan = basedir + '/querylog.scan.csv'
@@ -285,7 +285,7 @@ def plot_query_latvssel_unified(dir: str, save: bool = False):
         "FastQuery", "TritonSort", "CARP"
     ]
     all_colors = list(cm.colors)
-    all_msz = [ 16, 14, 14, 14 ]
+    all_msz = [16, 14, 14, 14]
 
     for type, df in enumerate([df_carp, df_flat, df_fq, df_scan]):
         rowidx = 0
@@ -316,13 +316,16 @@ def plot_query_latvssel_unified(dir: str, save: bool = False):
                    label='DeltaFS/FullScan', mec='black',
                    markersize=12))
     legend_items.append(
-        plt.Line2D([0], [0], marker='D', mfc=all_colors[2], mec='black', label='FastQuery',
+        plt.Line2D([0], [0], marker='D', mfc=all_colors[2], mec='black',
+                   label='FastQuery',
                    markersize=12))
     legend_items.append(
-        plt.Line2D([0], [0], marker='o', mfc=all_colors[1], mec='black', label='TritonSort',
+        plt.Line2D([0], [0], marker='o', mfc=all_colors[1], mec='black',
+                   label='TritonSort',
                    markersize=12))
     legend_items.append(
-        plt.Line2D([0], [0], marker='s', mfc=all_colors[0], mec='black', label='CARP',
+        plt.Line2D([0], [0], marker='s', mfc=all_colors[0], mec='black',
+                   label='CARP',
                    markersize=12))
 
     ax.legend(handles=legend_items, fontsize=18, loc="lower left",
@@ -342,20 +345,28 @@ def plot_query_latvssel_unified(dir: str, save: bool = False):
             return '{:.2f}'.format(x)
 
     ax.set_yticklabels([tickfmt(y) for y in yticks])
-    # ax.yaxis.set_major_formatter('{x:.2f}')
 
-    base_fontsz = 20
-    ax.set_xlabel('Query Selectivity', fontsize=base_fontsz)
-    fig.supylabel('Query Latency (seconds)', fontsize=base_fontsz, x=0.03,
-                  y=0.55)
+    def latfmt(x, pos):
+        if x < 1:
+            return '{:.2f}s'.format(x)
+        else:
+            return '{:.0f}s'.format(x)
+
+    # ax.yaxis.set_major_formatter('{x:.2f}s')
+    ax.yaxis.set_major_formatter(FuncFormatter(latfmt))
+
+    ax.set_xlabel('Query Selectivity')
+    # fig.supylabel('Query Latency (seconds)', fontsize=base_fontsz, x=0.03,
+    #               y=0.55)
+    ax.set_ylabel('Query Latency')
 
     # ax.minorticks_off()
     ax.xaxis.set_major_locator(MultipleLocator(0.5))
     ax.xaxis.set_minor_locator(MultipleLocator(0.25))
-    ax.xaxis.set_major_formatter('{x:.1f}%')
+    ax.xaxis.set_major_formatter('{x:.1f}\%')
 
-    for label in (ax.get_xticklabels() + ax.get_yticklabels()):
-        label.set_fontsize(base_fontsz - 1)
+    # for label in (ax.get_xticklabels() + ax.get_yticklabels()):
+    #     label.set_fontsize(base_fontsz - 1)
 
     ax.xaxis.grid(True, color='#777', which='major')
     ax.xaxis.grid(True, color='#ddd', which='minor')
@@ -368,13 +379,12 @@ def plot_query_latvssel_unified(dir: str, save: bool = False):
     PlotSaver.save(fig, "wherever", fname)
 
 
-def plot_query_ycsb(dir: str, save: bool = False) -> None:
+def plot_query_ycsb() -> None:
     basedir = '/Users/schwifty/Repos/workloads/rundata/eval/runs.big.2/YCSB.eval'
     basedir = '/Users/schwifty/Repos/workloads/rundata/eval/runs.uniform/YCSB'
     widths = [5, 20, 50, 100]
     tags = ['carp', 'comp']
     qlog_fmt = '{0}/querylog.{1}.{2}.csv'
-    base_fontsz = 12
 
     all_dfs = []
     for tag in tags:
@@ -430,33 +440,27 @@ def plot_query_ycsb(dir: str, save: bool = False) -> None:
                edgecolor='#000')
         ax.bar(x + width / 2, merged_df['qreadus'], width,
                label='TritonSort/Read', color=cmap(2), edgecolor='#000')
-        ax.yaxis.grid(True, color='#bbb')
+        ax.yaxis.grid(True, which='major', color='#aaa')
+        ax.yaxis.grid(True, which='minor', color='#ddd')
+        ax.yaxis.set_major_locator(MultipleLocator(300))
+        ax.yaxis.set_minor_locator(MultipleLocator(100))
         ax.set_xticks(x)
-        ax.set_xticklabels([str(w) for w in widths], fontsize=base_fontsz - 1)
-        yticklabels = [0, 300, 600, 900, 1200]
-        ax.set_yticks(yticklabels)
-        ax.set_yticklabels(yticklabels, fontsize=base_fontsz - 1)
-        ax.set_title('Epoch {0}'.format(epoch_labels[epoch]),
-                     fontsize=base_fontsz)
+        ax.set_xticklabels([str(w) for w in widths])
+        ax.set_ylim([0, 1200])
+        ax.yaxis.set_major_formatter('{x:.0f}s')
+        ax.set_title('Epoch {0}'.format(epoch_labels[epoch]))
 
-    # axes[0].legend(loc="upper right", ncol=3, bbox_to_anchor=(1, 2))
     lines_labels = [ax.get_legend_handles_labels() for ax in fig.axes[:1]]
     lines, labels = [sum(lol, []) for lol in zip(*lines_labels)]
-    fig.legend(lines, labels, ncol=1, bbox_to_anchor=(0.64, 0.91),
-               fontsize=base_fontsz - 1, framealpha=0.8)
+    fig.legend(lines, labels, ncol=1, bbox_to_anchor=(0.74, 0.89),
+               fontsize=18, framealpha=0.8)
 
-    fig.supxlabel('Query Width (#SSTs)', x=0.55, y=0.04,
-                  fontsize=base_fontsz + 1)
-    fig.supylabel('Total Time Taken (seconds)', x=0.03, y=0.55,
-                  fontsize=base_fontsz + 1)
+    fig.supxlabel('Query Width (\#SSTs)')
+    fig.supylabel('Total Time Taken')
 
-    figw, figh = fig.get_size_inches()
-    fig.set_size_inches(figw * 0.7, figh * 0.77)
     fig.tight_layout()
-    if save:
-        fig.savefig(dir + '/query.ycsb.v3.pdf', dpi=600)
-    else:
-        fig.show()
+    fig.subplots_adjust(bottom=0.17, left=0.17)
+    PlotSaver.save(fig, "wherever", "query.ycsb.v3.pdf")
 
 
 def plot_subpart_perf_abs(dir: str, save: bool = False) -> None:
@@ -805,8 +809,8 @@ def plot_intvl_runtime_2(dir: str, save: bool = False) -> None:
 
 def run(eval_dir):
     # plot_runtime_alt_2(eval_dir, True)
-    plot_query_latvssel_unified(eval_dir, False)
-    # plot_query_ycsb(eval_dir, True)
+    # plot_query_latvssel_unified()
+    plot_query_ycsb()
     # plot_subpart_perf_abs(eval_dir, True)
     # plot_intvl_runtime_2(eval_dir, True)
     # plot_rtp_lat(eval_dir, True)
@@ -814,4 +818,5 @@ def run(eval_dir):
 
 if __name__ == '__main__':
     eval_dir = '/Users/schwifty/Repos/carp/carp-paper/figures/eval'
+    plot_init()
     run(eval_dir)
