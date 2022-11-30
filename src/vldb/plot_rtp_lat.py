@@ -59,6 +59,9 @@ def plot_rtp_lat_wpvtcnt(plot_dir: str, save: False):
     latdata_path = '/Users/schwifty/Repos/workloads/rundata/20221020-roofline-throttlecheck/rtp-bench-runs-all.csv'
     latdata_path = "/Users/schwifty/Repos/workloads/rundata/20221027-roofline-strongscale/rtp-bench-runs-bmi.csv"
 
+    cm = plt.cm.get_cmap('Dark2')
+    colors = list(cm.colors)
+
     df = pd.read_csv(latdata_path)
     print(df.columns)
     df_mask = (df['rounds'] == 10) & (df['rwarmup'] == 5)
@@ -94,14 +97,14 @@ def plot_rtp_lat_wpvtcnt(plot_dir: str, save: False):
             all_npivots = all_npivots[:-1]
             plot_fname = f'{plot_fname}.wo8192'
 
-        for npivots in all_npivots:
+        for idx, npivots in enumerate(all_npivots):
             print(npivots)
             df_plot_pvt = df_plot[df_plot['npivots'] == npivots]
             data_x = df_plot_pvt['nranks']
             data_y = df_plot_pvt['mean']
             ls = hg_poll_linestyle[hg_poll]
             label = '{} pivots'.format(npivots)
-            ax.plot(data_x, data_y, ls, label=label)
+            ax.plot(data_x, data_y, ls, label=label, color=colors[idx+1])
 
     # df_std = df[df['rounds'] == 100]
     # data_y1 = df_std['mean'] - df_std['std']
@@ -110,7 +113,7 @@ def plot_rtp_lat_wpvtcnt(plot_dir: str, save: False):
     #
     # ax.fill_between(data_x, data_y1, data_y2, facecolor='green', alpha=0.1)
 
-    ax.set_ylim([0, 600000])
+    ax.set_ylim([0, 800000])
     ax.set_xscale('log')
     xticks = df['nranks'].unique()
     ax.set_xticks(xticks)
@@ -120,7 +123,7 @@ def plot_rtp_lat_wpvtcnt(plot_dir: str, save: False):
 
     # ax.set_title(plot_title)
     ax.set_xlabel('Number of Ranks')
-    ax.set_ylabel('Renegotiation Round Latency')
+    ax.set_ylabel('Renegotiation Latency')
 
     # ax.legend(loc='upper left', ncol=3)
     custom_lines = [
@@ -129,7 +132,7 @@ def plot_rtp_lat_wpvtcnt(plot_dir: str, save: False):
     ]
 
     if (hg_proto == "bmi+tcp"):
-        ax.legend(loc='upper left', fontsize=14)
+        ax.legend(loc='upper left', fontsize=18, ncol=2, bbox_to_anchor=(-0.03, 1.06))
     else:
         ax.legend(handles=custom_lines, loc='upper left')
 

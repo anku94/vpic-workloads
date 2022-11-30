@@ -189,115 +189,7 @@ def plot_allrun_intvlbar(run_df, plot_dir, save=False):
     return
 
 
-def plot_allrun_intvlwise(run_df, ax, plot_key, label_fmt):
-    run_df = run_df.groupby(['intvl', 'pvtcnt'], as_index=False).agg(
-        {'total_io_time_mean': 'mean',
-         'total_io_time_std': 'mean',
-         'load_std_mean': 'mean',
-         # 'max_fin_dura_mean': 'mean',
-         # 'wr_min_mean': 'mean',
-         # 'wr_max_mean': 'mean'
-         }).astype({
-        'pvtcnt': int,
-        'intvl': int
-    })
-
-    labels_x = None
-    data_x = None
-
-    run_params = {
-        'runtime': {
-            'ykey': 'total_io_time_mean',
-            'ylabel': 'Runtime (seconds)',
-            'title': 'Pivot Count vs Runtime as f(intvl) - NoWrite',
-            'majorfmt': lambda x, pos: '{:.0f}s'.format(x / 1e3),
-            'minorfmt': MultipleLocator(100000),
-            'ylim': 1500 * 1e3
-        },
-
-        'load_std': {
-            'ykey': 'load_std_mean',
-            'ylabel': 'Load Std-Dev (%)',
-            'title': 'Pivot Count vs Partition Load Std-Dev as f(intvl) - NoWrite',
-            'majorfmt': lambda x, pos: '{:.0f}%'.format(x * 100),
-            'minorfmt': MultipleLocator(0.05),
-            'ylim': 2
-        }
-    }
-
-    params = run_params[plot_key]
-
-    def intvl_map(intvl):
-        if intvl < 100:
-            return 1 / intvl
-        num_writes = 6500000
-        return num_writes / intvl
-
-    run_df['intvl_norm'] = run_df['intvl'].map(intvl_map)
-    run_df.sort_values('intvl_norm', inplace=True)
-    intvls = run_df['intvl'].unique()
-
-    intvl_str_dict = {
-        1: '1X/Epoch',
-        3: '1X/3 Epochs',
-        750000: '750K Writes (8X/Epoch)',
-        1000000: '1M Writes (6X/Epoch)',
-        1500000: '1.5M Writes (~4X/Epoch)',
-        2000000: '2M Writes (~3X/Epoch)',
-        3000000: '3M Writes (~2X/Epoch)'
-    }
-
-    def intvl_str_func(nep):
-        if nep < 1:
-            return f'1X/{int(1 / nep)} Epochs'
-        else:
-            return f'{int(nep)}X/Epoch'
-
-    for intvl in intvls:
-        intvl_df = run_df[run_df['intvl'] == intvl].sort_values(['pvtcnt'])
-        intvl_norm = list(intvl_df['intvl_norm'].unique())[0]
-        labels_x = intvl_df['pvtcnt']
-        data_x = np.arange(len(labels_x))
-        # data_y = intvl_df['total_io_time_mean']
-        data_y = intvl_df[params['ykey']]
-        # data_y_err = intvl_df['total_io_time_std']
-
-        linestyle = '-o'
-        if len(data_x) == 1:
-            data_x = list(data_x)
-            data_y = list(data_y)
-            data_x += [1, 2]
-            y0 = data_y[0]
-            data_y += [y0, y0]
-            linestyle = '--x'
-
-        # intvl_str = intvl_str_dict[intvl]
-        # ax.errorbar(data_x, data_y, yerr=data_y_err, label=label_fmt.format(intvl),
-        #             capsize=8)
-        # ax.plot(data_x, data_y, linestyle, label=label_fmt.format(intvl_str))
-        ax.plot(data_x, data_y, linestyle, label=intvl_str_func(intvl_norm))
-
-    xticklabels = sorted(run_df["pvtcnt"].unique())
-    xticks = list(range(len(xticklabels)))
-    ax.set_xticks(xticks)
-    ax.set_xticklabels([str(i) for i in xticklabels])
-
-    ax.set_xlabel('#pivots')
-    ax.set_ylabel(params['ylabel'])
-    ax.set_title(params['title'])
-
-    ax.yaxis.set_major_formatter(params['majorfmt'])
-    ax.yaxis.set_minor_locator(params['minorfmt'])
-    ax.yaxis.grid(b=True, which='major', color='#aaa')
-    ax.yaxis.grid(b=True, which='minor', color='#ddd')
-
-    ax.set_ylim([0, params['ylim']])
-    ax.legend()
-
-    return ax
-
-
-def plot_intvls_addpt(df, intvl, ax, **kwargs):
+def plot_intvls_addpt(plot_key, df, intvl, ax, **kwargs):
     print(df[df["intvl"] == intvl][["pvtcnt", "total_io_time"]].to_string())
     df_intvl = df[df["intvl"] == intvl].groupby("pvtcnt", as_index=False).agg({
         "total_io_time": "mean",
@@ -305,17 +197,22 @@ def plot_intvls_addpt(df, intvl, ax, **kwargs):
         "load_std": "mean"
     })
     data_pvtcnt = df_intvl["pvtcnt"]
-    data_y = df_intvl["total_io_time"]
-    data_y = df_intvl["load_std"]
+    if plot_key == "runtime":
+        data_y = df_intvl["total_io_time"]
+    else:
+        data_y = df_intvl["load_std"]
     print(f"[Intvl] {intvl}, dx: {data_pvtcnt.tolist()}")
     print(f"[Intvl] {intvl}, dy: {(data_y / 1000).astype(int).tolist()}")
 
     data_x = range(len(data_y))
-    ax.plot(data_x, data_y, **kwargs)
+    ax.plot(data_x, data_y, '-o', **kwargs)
     pass
 
 
 def plot_intvls(df_raw, plot_dir):
+    cm = plt.cm.get_cmap('Dark2')
+    colors = list(cm.colors)
+
     def intvl_map(intvl):
         if intvl < 100:
             return 1 / intvl
@@ -323,7 +220,6 @@ def plot_intvls(df_raw, plot_dir):
         return num_writes / intvl
 
     df = df_raw[df_raw["runtype"] == "carp-suite-intraepoch-skipsort"]
-
 
     df = df.astype({
         "intvl": int,
@@ -341,53 +237,46 @@ def plot_intvls(df_raw, plot_dir):
             'ylabel': 'Runtime (seconds)',
             'title': 'Pivot Count vs Runtime as f(intvl) - NoWrite',
             'majorfmt': lambda x, pos: '{:.0f}s'.format(x / 1e3),
-            'minorfmt': MultipleLocator(100000),
-            'ylim': 1500 * 1e3
+            'minorloc': MultipleLocator(5000),
+            'ylim': 90 * 1e3,
+            'fname': 'runtime.vs.params'
         },
 
         'load_std': {
             'ykey': 'load_std_mean',
-            'ylabel': 'Load Std-Dev (%)',
+            'ylabel': 'Load Std-Dev (\%)',
             'title': 'Pivot Count vs Partition Load Std-Dev as f(intvl) - NoWrite',
             'majorfmt': lambda x, pos: '{:.0f}%'.format(x * 100),
-            'minorfmt': MultipleLocator(0.05),
-            'ylim': 2
+            'minorloc': MultipleLocator(0.05),
+            'ylim': 0.5,
+            'fname': 'load.vs.params'
         }
     }
 
     plot_key = "load_std"
+    # plot_key = "runtime"
     params = run_params[plot_key]
-
-    intvl_str_dict = {
-        1: '1X/Epoch',
-        3: '1X/3 Epochs',
-        750000: '750K Writes (8X/Epoch)',
-        1000000: '1M Writes (6X/Epoch)',
-        1500000: '1.5M Writes (~4X/Epoch)',
-        2000000: '2M Writes (~3X/Epoch)',
-        3000000: '3M Writes (~2X/Epoch)'
-    }
 
     def intvl_str_func(nep):
         if nep < 1:
             return f'1X/{int(1 / nep)} Epochs'
         else:
-            return f'{int(nep)}X/Epoch'
+            return f'{int(nep)}X Renegotiations/Epoch'
 
     fig, ax = plt.subplots(1, 1)
 
-    for intvl in intvls:
-        plot_intvls_addpt(df, intvl, ax, label=intvl_str_func(intvl_map(intvl)))
+    for idx, intvl in enumerate(intvls):
+        plot_intvls_addpt(plot_key, df, intvl, ax, label=intvl_str_func(intvl_map(intvl)), color=colors[idx+1])
 
     xticks = list(range(len(pvtcnt)))
     ax.set_xticks(xticks)
     ax.set_xticklabels([str(i) for i in pvtcnt])
 
-    ax.set_xlabel('#pivots')
+    ax.set_xlabel('Pivot Count')
     ax.set_ylabel(params['ylabel'])
 
     ax.yaxis.set_major_formatter(params['majorfmt'])
-    ax.yaxis.set_minor_locator(params['minorfmt'])
+    ax.yaxis.set_minor_locator(params['minorloc'])
     ax.yaxis.grid(b=True, which='major', color='#aaa')
     ax.yaxis.grid(b=True, which='minor', color='#ddd')
 
@@ -395,7 +284,7 @@ def plot_intvls(df_raw, plot_dir):
     ax.legend()
     fig.tight_layout()
 
-    PlotSaver.save(fig, plot_dir, "intvl.vs.pvtcnt")
+    PlotSaver.save(fig, plot_dir, params["fname"])
 
 
 def preprocess_allrun_df(run_df):
@@ -586,7 +475,7 @@ def plot_roofline_internal_vldb(df, ax):
         "carp-suite-intraepoch": "CARP - IntraEpoch",
         "carp-suite-intraepoch-skipsort": "CARP - IntraEpoch/NoSort",
         "carp-suite-intraepoch-nowrite": "CARP - IntraEpoch/NoWrite",
-        "carp-suite-interepoch": "CARP - InterEpoch",
+        "carp-suite-interepoch": "CARP", # renamed from CARP-InterEpoch
         "carp-suite-interepoch-skipsort": "CARP - InterEpoch/NoSort",
         "carp-suite-interepoch-nowrite": "CARP - InterEpoch/NoWrite",
         "dfs-ioonly": "Storage Bound - Line",
@@ -597,17 +486,16 @@ def plot_roofline_internal_vldb(df, ax):
         "network-suite-1hopsim-node2x": "Max Shuffle Xput (IPoIB, 1HOPSIM, PPN1/2)",
     }
 
-    keys_to_plot = {
-        "dfs-reg-suite", "carp-suite-intraepoch-skipsort",
-        "carp-suite-interepoch",
-        "dfs-ioonly", "network-suite"
-    }
-
-    keys_to_plot = {
+    keys_to_plot = [
         "dfs-reg-suite", "carp-suite-intraepoch-skipsort",
         "carp-suite-interepoch",
         "carp-suite-interepoch-nowrite",
-    }
+    ]
+
+    keys_to_plot = [
+        "dfs-reg-suite",
+        "carp-suite-interepoch"
+    ]
 
     for kidx, key in enumerate(keys_to_plot):
         print(f"Plotting datapoints: {key}")
@@ -707,9 +595,13 @@ def plot_roofline(plot_dir, df):
         else:
             new_handles.append(h)
 
-    leg = ax.legend(new_handles, labels, ncol=1, fontsize=13, framealpha=0.5,
+    handle_order = [2, 1, 0, 3, 4]
+    new_handles = [new_handles[i] for i in handle_order]
+    labels = [labels[i] for i in handle_order]
+
+    leg = ax.legend(new_handles, labels, ncol=1, fontsize=18, framealpha=0.5,
                     loc="upper left",
-                    bbox_to_anchor=(-0.02, 1.1))
+                    bbox_to_anchor=(-0.02, 1.03))
 
     for h in leg.legendHandles:
         if isinstance(h, Rectangle):
@@ -810,7 +702,7 @@ def prep_data_sources(rootdir=None):
 
 
 def aggr_data_sources():
-    df_dir = "/Users/schwifty/Repos/workloads/rundata/20221127-roofline-ss1024-4gbps"
+    df_dir = "/Users/schwifty/Repos/workloads/rundata/20221128-roofline-ss1024-re"
     df = prep_data_sources(df_dir)
 
     all_masks = [
@@ -827,26 +719,8 @@ def aggr_data_sources():
     return df_plot
 
 
-def run_plot_intvlwise_from_dfall(df, plot_dir):
-    print(df)
-    return
-    fig, ax = plt.subplots(1, 1)
-    # plot_key = "load_std"
-    plot_key = "runtime"
-    plot_name = f"{plot_dir}/carp_intvlwise_{plot_key}"
-    if nowrite:
-        plot_name = f"{plot_name}_nowrite"
-    plot_allrun_intvlwise(df_all, ax, plot_key, "Interval: {}")
-    print(plot_name)
-    fig.tight_layout()
-    # fig.show()
-    fig.savefig(plot_name + ".pdf")
-
-    return
-
-
 def run_plot_roofline():
-    plot_dir = "/Users/schwifty/Repos/workloads/rundata/20221125-roofline-ss1024-4gbps"
+    plot_dir = "/Users/schwifty/Repos/workloads/rundata/20221128-roofline-ss1024-4gbps"
     df_plot = aggr_data_sources()
     df_ss = filter_strongscale(df_plot)
     plot_roofline(plot_dir, df_ss)
@@ -865,5 +739,5 @@ if __name__ == "__main__":
     #     os.mkdir(plot_dir)
 
     plot_init()
-    # run_plot_roofline()
-    run_plot_intvls()
+    run_plot_roofline()
+    # run_plot_intvls()

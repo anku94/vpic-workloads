@@ -1,3 +1,4 @@
+import matplotlib
 import matplotlib.figure as pltfig
 import matplotlib.pyplot as plt
 import sys
@@ -17,12 +18,13 @@ def plot_init():
     plt.rc("ytick", labelsize=SMALL_SIZE)  # fontsize of the tick labels
     plt.rc("legend", fontsize=SMALL_SIZE)  # legend fontsize
     plt.rc("figure", titlesize=BIGGER_SIZE)  # fontsize of the figure title
+    plt.rc('text', usetex=True)  # LaTeX
 
 
 def plot_init_bigfont():
-    SMALL_SIZE = 16
-    MEDIUM_SIZE = 20
-    BIGGER_SIZE = 22
+    SMALL_SIZE = 20
+    MEDIUM_SIZE = 22
+    BIGGER_SIZE = 26
 
     plt.rc(
         "font", size=SMALL_SIZE
@@ -31,16 +33,17 @@ def plot_init_bigfont():
     plt.rc("axes", labelsize=MEDIUM_SIZE)  # fontsize of the x and y labels
     plt.rc("xtick", labelsize=SMALL_SIZE)  # fontsize of the tick labels
     plt.rc("ytick", labelsize=SMALL_SIZE)  # fontsize of the tick labels
-    plt.rc("legend", fontsize=SMALL_SIZE)  # legend fontsize
-    plt.rc("figure", titlesize=BIGGER_SIZE)  # fontsize of the figure title
+    plt.rc("legend", fontsize=SMALL_SIZE - 4)  # legend fontsize
+    plt.rc("figure", titlesize=BIGGER_SIZE, labelsize=MEDIUM_SIZE)  # fontsize of the figure title
+    plt.rc('text', usetex=True)  # LaTeX
 
 
 class PlotSaver:
     @staticmethod
     def save(fig: pltfig.Figure, fpath: str, fname: str):
         PlotSaver._save_to_fpath(fig, fpath, fname, ext="png", show=True)
+        # PlotSaver._save_to_paper(fig, "eval", fname)
         # PlotSaver._save_to_project(fig, fname)
-        # PlotSaver._save_to_paper(fig, "bg", fname)
         # PlotSaver._save_unrolled(fig, fpath, fname)
 
     @staticmethod
