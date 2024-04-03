@@ -79,16 +79,17 @@ def plot_add_bins(
     hist_mid = get_hist_between(keys, hist_dict, bins, 0.1, 0.5)
     rightcolor = "rgba(0, 0, 100, 1.0)"
     rightcolor = "rgba(100, 0, 0, 0.9)"
-    cutoffcolor = "rgba(100, 100, 100, 0.7)"
+    rightcolor2 = "rgba(0, 0, 100, 0.9)"
+    cutoffcolor = "rgba(100, 100, 100, 0.8)"
     annotcolor = "rgba(100, 100, 100, 0.9)"
     annottxtcolor = "rgba(50, 50, 50, 1.0)"
 
     trace = go.Scatter(
         x=dx,
         y=hist_mid,
-        name="Mass (middle band)",
-        line=dict(color=rightcolor, width=8),
-        marker=dict(size=32, symbol="square"),
+        name="Middle Band",
+        line=dict(color=rightcolor2, width=8),
+        marker=dict(size=42, symbol="square"),
         mode="lines+markers",
         yaxis="y2",
     )
@@ -98,9 +99,9 @@ def plot_add_bins(
     trace = go.Scatter(
         x=dx,
         y=hist_tail,
-        name="Mass (Tail band)",
+        name="Tail Band",
         line=dict(color=rightcolor, width=8),
-        marker=dict(size=32),
+        marker=dict(size=42),
         mode="lines+markers",
         yaxis="y2",
     )
@@ -111,7 +112,7 @@ def plot_add_bins(
     trace = go.Scatter(
         x=horizontal_x,
         y=[0.1, 0.1],
-        line=dict(color=cutoffcolor, width=5),
+        line=dict(color=cutoffcolor, width=10, dash="dot"),
         showlegend=False,
     )
     fig.add_trace(trace, row=1, col=1, secondary_y=False)
@@ -119,7 +120,7 @@ def plot_add_bins(
     trace = go.Scatter(
         x=horizontal_x,
         y=[0.5, 0.5],
-        line=dict(color=cutoffcolor, width=5),
+        line=dict(color=cutoffcolor, width=10, dash="dot"),
         showlegend=False,
     )
     fig.add_trace(trace, row=1, col=1, secondary_y=False)
@@ -128,28 +129,30 @@ def plot_add_bins(
         x=-0.8,
         y=0.5,
         text="<i>Cutoff <br />(Tail Band)</i>",
-        font=dict(size=36, color=annottxtcolor),
+        font=dict(size=44, color=annottxtcolor),
         arrowcolor=annotcolor,
         arrowwidth=5,
         showarrow=True,
         arrowhead=2,
         arrowsize=1,
-        ax=200,
+        ax=190,
         ay=-320,
+        bgcolor="rgba(255, 255, 255, 0.7)"
     )
 
     fig.add_annotation(
         x=-0.55,
         y=0.1,
         text="<i>Cutoff <br />(Mid Band)</i>",
-        font=dict(size=36, color=annottxtcolor),
+        font=dict(size=44, color=annottxtcolor),
         arrowcolor=annotcolor,
         arrowwidth=5,
         showarrow=True,
         arrowhead=2,
         arrowsize=1,
-        ax=140,
+        ax=137,
         ay=-220,
+        bgcolor="rgba(255, 255, 255, 0.7)"
     )
 
     pass
@@ -158,14 +161,28 @@ def plot_add_bins(
 def plot(keys: list[str], bins: np.ndarray, hist_dict: dict[str, np.ndarray]):
     fig = make_subplots(specs=[[{"secondary_y": True}]])
 
+    fig.update_layout(
+        font=dict(size=52),
+        legend=dict(
+            yanchor="top",
+            y=0.99,
+            xanchor="left",
+            x=0.66,
+            bordercolor="#666",
+            borderwidth=2,
+            itemwidth=100
+        ),
+        plot_bgcolor="#fff",
+    )
+
     for kidx, k in enumerate(keys):
         print(k)
         hist = hist_dict[k]
         data = gen_data_from_hist(hist, bins, 50000)
 
-        leftcolor = "rgba(0, 100, 80, 1.0)"
+        leftcolor = "rgba(0, 40, 40, 1.0)"
         leftcolor_light = "rgba(0, 100, 80, 0.5)"
-        rightcolor = "rgba(100, 0, 0, 0.9)"
+        rightcolor = "rgba(80, 0, 0, 0.9)"
 
         vdata = go.Violin(
             x0=kidx - 0.4,
@@ -174,7 +191,7 @@ def plot(keys: list[str], bins: np.ndarray, hist_dict: dict[str, np.ndarray]):
             meanline_visible=False,
             points=False,
             side="positive",
-            bandwidth=0.15,
+            bandwidth=0.10,
             scalemode="width",
             line=dict(width=8, color=leftcolor),
             yaxis="y",
@@ -190,44 +207,48 @@ def plot(keys: list[str], bins: np.ndarray, hist_dict: dict[str, np.ndarray]):
     # fig.update_traces(width=1.8)
 
     fig.update_xaxes(
-        title_text="Timestep",
+        title_text="Simulation Timestep",
         tickvals=np.arange(len(keys)),
         ticktext=get_tick_labels(keys),
         range=(-0.8, len(keys)),
+        linecolor="#444",
+        linewidth=3,
+        title_font=dict(color="#333"),
+        tickfont=dict(color="#333"),
     )
-
     fig.update_yaxes(
         title_text="Energy (dimensionless)",
         title_standoff=50,
-        nticks=5,
+        tickmode="array",
+        tickvals=[0, 0.5, 1, 1.5, 2, 2.5, 3],
         range=(0, 3),
+        tickformat=".1f",
         secondary_y=False,
         title_font=dict(color=leftcolor),
         tickfont=dict(color=leftcolor),
+        linecolor="#444",
+        linewidth=3,
+        gridcolor="#bbb",
+        gridwidth=2,
     )
 
     fig.update_yaxes(
-        title_text="Mass %",
+        title_text="% of all data",
         nticks=5,
         range=(0, 0.15),
         tickformat=".0%",
         secondary_y=True,
         title_font=dict(color=rightcolor),
         tickfont=dict(color=rightcolor),
+        linecolor="#444",
+        linewidth=3,
     )
 
-    fig.update_layout(
-        font=dict(size=52),
-        legend=dict(
-            yanchor="top",
-            y=0.99,
-            xanchor="left",
-            x=0.63,
-        ),
-    )
     # fig.show()
-    fig.write_image("violin_amr.pdf", width=2048, height=768)
-    pass
+    print("Writing violin plot to file")
+    img_path = "~/Repos/carp-paper/figures/distrib.amr.pdf"
+    img_path = os.path.expanduser(img_path)
+    fig.write_image(img_path, width=2048, height=768)
 
 
 def run():
