@@ -652,6 +652,7 @@ def plot_roofline(plot_dir, df):
     fig, ax = plt.subplots(1, 1, figsize=figsize)
 
     file_name_noext = "runtime.v4.werr"
+    file_name_noext = "runtime.v5.simple"
 
     plot_roofline_internal_addshadedreg(df, ax)
     plot_roofline_internal_vldb(df, ax)
@@ -794,6 +795,7 @@ def aggr_data_sources():
 def run_plot_roofline():
     plot_dir = "/Users/schwifty/Repos/workloads/rundata/20221128-roofline-ss1024-4gbps"
     plot_init_bigfont()
+    plot_dir = "/Users/schwifty/CMU/18911/Documents/20240716_ASCR_CARP"
     df_plot = aggr_data_sources()
     df_ss = filter_strongscale(df_plot)
     plot_roofline(plot_dir, df_ss)
