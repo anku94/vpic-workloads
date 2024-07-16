@@ -276,15 +276,22 @@ def plot_query_latvssel_unified():
     q = df_fq['timemean']
     print(max(q / p), min(q / p))
 
-    fig, ax = plt.subplots(1, 1)
+    fig, ax = plt.subplots(1, 1, figsize=[9, 5])
     cm = plt.cm.get_cmap('Set2')
+    cm = plt.cm.get_cmap('Set3')
 
-    markers = ['s', 'o', 'D', '^']
+    markers = ['o', 'D', '^', 's']
     all_labels = [
         "DeltaFS/FullScan",
         "FastQuery", "TritonSort", "CARP"
     ]
     all_colors = list(cm.colors)
+    all_colors = [
+        all_colors[0],
+        all_colors[5],
+        all_colors[2],
+        all_colors[3],
+    ]
     all_msz = [16, 14, 14, 14]
 
     for type, df in enumerate([df_carp, df_flat, df_fq, df_scan]):
@@ -303,8 +310,12 @@ def plot_query_latvssel_unified():
             # color per type
             color = all_colors[type]
 
+            if type == 0:
+                zorder = 3
+            else:
+                zorder = 2
             ax.plot(data_x, data_y, marker=marker, mec='black', mfc=color,
-                    markersize=all_msz[type], label=all_labels[type])
+                    markersize=all_msz[type], label=all_labels[type], zorder=zorder)
             if type < 3:
                 ax.errorbar(data_x, data_y, yerr=data_err, color=color)
 
@@ -312,24 +323,24 @@ def plot_query_latvssel_unified():
 
     legend_items = []
     legend_items.append(
-        plt.Line2D([0], [0], marker='^', mfc=all_colors[3],
+        plt.Line2D([0], [0], marker='s', mfc=all_colors[3],
                    label='DeltaFS/FullScan', mec='black',
                    markersize=12))
     legend_items.append(
-        plt.Line2D([0], [0], marker='D', mfc=all_colors[2], mec='black',
+        plt.Line2D([0], [0], marker='^', mfc=all_colors[2], mec='black',
                    label='FastQuery',
                    markersize=12))
     legend_items.append(
-        plt.Line2D([0], [0], marker='o', mfc=all_colors[1], mec='black',
+        plt.Line2D([0], [0], marker='D', mfc=all_colors[1], mec='black',
                    label='TritonSort',
                    markersize=12))
     legend_items.append(
-        plt.Line2D([0], [0], marker='s', mfc=all_colors[0], mec='black',
+        plt.Line2D([0], [0], marker='o', mfc=all_colors[0], mec='black',
                    label='CARP',
                    markersize=12))
 
     ax.legend(handles=legend_items, fontsize=18, loc="lower left",
-              bbox_to_anchor=(0.41, -0.03), ncol=1)
+              bbox_to_anchor=(0.61, -0.03), ncol=1)
 
     ax.set_yscale('log')
     yticks = [0.04, 0.2, 1, 5, 25, 125]
@@ -400,7 +411,7 @@ def plot_query_ycsb() -> None:
     print(all_dfs[0].describe())
     print(all_dfs[1].describe())
 
-    fig, axes = plt.subplots(1, 2, sharex=True, sharey=True)
+    fig, axes = plt.subplots(1, 2, sharex=True, sharey=True, figsize=[9, 5])
     axes = [axes[0], axes[1]]
     print(axes)
     epochs = [0, 11]
@@ -434,12 +445,12 @@ def plot_query_ycsb() -> None:
         print(orig_df)
         print(merged_df)
         ax.bar(x - width / 2, orig_df['qreadus'], width, label='CARP/Read',
-               color=cmap(0), edgecolor='#000')
+               color=cmap(0), edgecolor='#000', hatch='.')
         ax.bar(x - width / 2, orig_df['qsortus'], width,
-               bottom=orig_df['qreadus'], label='CARP/Sort', color=cmap(1),
+               bottom=orig_df['qreadus'], label='CARP/Sort', color=cmap(2),
                edgecolor='#000')
         ax.bar(x + width / 2, merged_df['qreadus'], width,
-               label='TritonSort/Read', color=cmap(2), edgecolor='#000')
+               label='TritonSort/Read', color=cmap(1), edgecolor='#000', hatch='X')
         ax.yaxis.grid(True, which='major', color='#aaa')
         ax.yaxis.grid(True, which='minor', color='#ddd')
         ax.yaxis.set_major_locator(MultipleLocator(300))
@@ -459,8 +470,8 @@ def plot_query_ycsb() -> None:
     fig.supylabel('Total Time Taken')
 
     fig.tight_layout()
-    fig.subplots_adjust(bottom=0.17, left=0.17)
-    PlotSaver.save(fig, "wherever", "query.ycsb.v3.pdf")
+    fig.subplots_adjust(bottom=0.15, left=0.14)
+    PlotSaver.save(fig, "wherever", "query.ycsb.v3")
 
 
 def plot_subpart_perf_abs(dir: str, save: bool = False) -> None:
@@ -527,10 +538,10 @@ def plot_subpart_perf_abs(dir: str, save: bool = False) -> None:
     cm = plt.cm.get_cmap('tab20c')
 
     ax = axes[0]
-    ax.plot(x_ticks, ysub0x50, 'o--', label='50%ile, w/o repart.', color=cm(1))
-    ax.plot(x_ticks, ysub1x50, 'o-', label='50%ile, with repart.', color=cm(0))
-    ax.plot(x_ticks, ysub0x99, 's--', label='99%ile, w/o repart.', color=cm(5))
-    ax.plot(x_ticks, ysub1x99, 's-', label='99%ile, with repart.', color=cm(4))
+    ax.plot(x_ticks, ysub0x50, 'o--', label='50\%ile, w/o repart.', color=cm(1))
+    ax.plot(x_ticks, ysub1x50, 'o-', label='50\%ile, with repart.', color=cm(0))
+    ax.plot(x_ticks, ysub0x99, 's--', label='99\%ile, w/o repart.', color=cm(5))
+    ax.plot(x_ticks, ysub1x99, 's-', label='99\%ile, with repart.', color=cm(4))
     # ax.plot(x_ticks, ysub0x50 / ysub1x50, 'o-',
     #         label='Repartitioning (50 %ile)',
     #         color=cm(0))
@@ -548,11 +559,11 @@ def plot_subpart_perf_abs(dir: str, save: bool = False) -> None:
     #         color=cm(5))
     # ax.plot(x_ticks, ysub1x99 / ysub4x99, 's--', label='4x Subpart., (99 %ile)',
     #         color=cm(9))
-    ax.plot(x_ticks, ysub1x50, '^--', label='50%ile, no subpart.', color=cm(0),
+    ax.plot(x_ticks, ysub1x50, '^--', label='50\%ile, no subpart.', color=cm(0),
             alpha=0.6)
-    ax.plot(x_ticks, ysub2x50, 'o--', label='50%ile, 2X subpart', color=cm(0),
+    ax.plot(x_ticks, ysub2x50, 'o--', label='50\%ile, 2X subpart', color=cm(0),
             alpha=0.8)
-    ax.plot(x_ticks, ysub4x50, 's-', label='50%ile, 4X subpart', color=cm(0))
+    ax.plot(x_ticks, ysub4x50, 's-', label='50\%ile, 4X subpart', color=cm(0))
     # ax.plot(x_ticks, ysub1x99, 'o--', label='50%ile, 1X Subpart.', color=cm(6))
     # ax.plot(x_ticks, ysub2x99, 'o--', label='50%ile, 2X Subpart', color=cm(5))
     # ax.plot(x_ticks, ysub4x99, 's-', label='50%ile, 4X Subpart', color=cm(4))
@@ -576,14 +587,14 @@ def plot_subpart_perf_abs(dir: str, save: bool = False) -> None:
     # ax.legend(fontsize=base_fontsz - 4)
 
     for ax in axes:
-        ax.set_ylabel('RAF', fontsize=base_fontsz - 1)
-        ax.set_xlabel('Simulation Timestep', fontsize=base_fontsz - 1)
+        ax.set_ylabel('Read\nAmplification', fontsize=base_fontsz - 1)
+        ax.set_xlabel('Simulation Timestep', fontsize=base_fontsz)
         ax.set_xticks(x_ticks)
-        ax.set_xticklabels(x_ticklabels, rotation=30, fontsize=base_fontsz - 4)
+        ax.set_xticklabels(x_ticklabels, rotation=30, fontsize=base_fontsz - 1)
         ax.xaxis.grid(True, color='#bbb')
         ax.yaxis.grid(True, color='#bbb')
 
-    axes[0].legend(ncol=2, fontsize=base_fontsz - 4, loc="lower left",
+    axes[0].legend(ncol=2, fontsize=base_fontsz - 3, loc="lower left",
                    bbox_to_anchor=(0.0, 0.722))
     axes[0].set_yscale('log')
     # axes[0].yaxis.set_major_locator(MultipleLocator(2))
@@ -593,13 +604,13 @@ def plot_subpart_perf_abs(dir: str, save: bool = False) -> None:
     yticks0 = [4, 16, 64, 256, 1024]
     yticklabels0 = ['{:.0f}X'.format(x / 4) for x in yticks0]
     axes[0].set_yticks(yticks0)
-    axes[0].set_yticklabels(yticklabels0)
+    axes[0].set_yticklabels(yticklabels0, fontsize=base_fontsz - 2)
     # axes[0].yaxis.set_major_formatter('{x:.0f}X')
     axes[0].minorticks_off()
     axes[0].set_ylim([0.5, 512])
     axes[0].set_ylim([2, 2048])
 
-    axes[1].legend(ncol=2, fontsize=base_fontsz - 4, loc="lower left",
+    axes[1].legend(ncol=2, fontsize=base_fontsz - 3, loc="lower left",
                    bbox_to_anchor=(0.0, 0.62))
     axes[1].set_ylim([0.5, 16])
     axes[1].set_yscale('log')
@@ -608,14 +619,12 @@ def plot_subpart_perf_abs(dir: str, save: bool = False) -> None:
     # axes[1].yaxis.set_minor_locator(MultipleLocator(1))
     yticks1 = [1, 2, 4, 8]
     axes[1].set_yticks(yticks1)
+    axes[1].yaxis.set_tick_params(labelsize=base_fontsz - 2)
     # axes[1].yaxis.grid(True, color='#ddd', which='minor')
     axes[1].yaxis.set_major_formatter('{x:.0f}X')
 
     fig.tight_layout()
-    if save:
-        fig.savefig(dir + '/carpdb.impact.alt3.pdf', dpi=600)
-    else:
-        fig.show()
+    PlotSaver.save(fig, dir, 'carpdb.impact.alt4')
 
 
 def aggr_intvl_olaps(intvls: List, csv_path: str) -> List:
@@ -808,7 +817,7 @@ def plot_intvl_runtime_2(dir: str, save: bool = False) -> None:
 
 
 def run(eval_dir):
-    # plot_runtime_alt_2(eval_dir, True)
+    # plot_runtime_alt_2(eval_dir, False)
     # plot_query_latvssel_unified()
     plot_query_ycsb()
     # plot_subpart_perf_abs(eval_dir, True)

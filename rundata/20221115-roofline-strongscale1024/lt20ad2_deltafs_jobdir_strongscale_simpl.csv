@@ -1,0 +1,13 @@
+,runtype,nranks,epcnt,run,total_io_time,load_std
+2,dfs-ioonly,128,6,11,186,0
+1,dfs-ioonly,256,3,11,125,0
+0,dfs-ioonly,512,1,11,73,0
+3,dfs-ioonly,1024,1,11,70,0
+10,dfs-reg-suite,128,6,11,234,0
+9,dfs-reg-suite,256,3,11,141,0
+8,dfs-reg-suite,512,1,11,102,0
+11,dfs-reg-suite,1024,1,11,79,0
+6,network-suite,128,6,11,214,0
+5,network-suite,256,3,11,77,0
+4,network-suite,512,1,11,27,0
+7,network-suite,1024,1,11,18,0

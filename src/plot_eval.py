@@ -871,6 +871,11 @@ def plot_subpart_perf_abs(dir: str, save: bool = False) -> None:
     ysub1x99 = aggr(df99, [10, 12])
     ysub0x99 = aggr(df99, [13, 15])
 
+    print(ysub0x50 / ysub1x50)
+    print(ysub0x99 / ysub1x99)
+
+    return
+
     x_ticks = range(12)
     x_ticklabels = "200,1400,2600,3800,5000,6200,7400,8600,9800,12200,15800,19400"
     x_ticklabels = "200,2000,3800,5600,7400,9200,11000,12800,14600,16400,18200,19400".split(
@@ -1231,8 +1236,8 @@ def eval(dir: str) -> None:
 #     plot_query_ycsb(dir, False)
 #     # plot_intvl_runtime_2(dir, True)
 #     # plot_subpart_perf(dir, False)
-#     # plot_subpart_perf_abs(dir, False)
-    plot_subpart_query(dir, False)
+    plot_subpart_perf_abs(dir, False)
+    #  plot_subpart_query(dir, False)
 
 
 if __name__ == '__main__':

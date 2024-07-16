@@ -1,0 +1,8 @@
+,runtype,nranks,epcnt,run,total_io_time,load_std
+6,dfs-reg-suite,16,12,3,138,0
+5,dfs-reg-suite,16,12,4,193,0
+1,dfs-seq-suite,16,12,3,130,0
+0,dfs-seq-suite,16,12,4,193,0
+4,network-suite,16,12,3,122,0
+3,network-suite,16,12,4,179,0
+2,network-suite,32,12,3,848,0

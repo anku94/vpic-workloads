@@ -4,7 +4,7 @@ from matplotlib.lines import Line2D
 import os
 import pandas as pd
 
-from common import plot_init_bigfont as plot_init, PlotSaver
+from common import plot_init_bigfont, plot_init_bigfont_singlecol, PlotSaver
 
 
 def plot_rtp_lat_orig(eval_dir: str, save: False):
@@ -90,6 +90,10 @@ def plot_rtp_lat_wpvtcnt(plot_dir: str, save: False):
         1: '--s'
     }
 
+    marker_styles = [
+        "D", "h", "^", "v", "o", "s"
+    ][::-1]
+
     for hg_poll in df["hg_poll"].unique():
         df_plot = df[df["hg_poll"] == hg_poll]
         all_npivots = sorted(df['npivots'].unique())
@@ -104,7 +108,7 @@ def plot_rtp_lat_wpvtcnt(plot_dir: str, save: False):
             data_y = df_plot_pvt['mean']
             ls = hg_poll_linestyle[hg_poll]
             label = '{} pivots'.format(npivots)
-            ax.plot(data_x, data_y, ls, label=label, color=colors[idx+1])
+            ax.plot(range(len(data_x)), data_y, ls, label=label, color=colors[idx+1], marker=marker_styles[idx])
 
     # df_std = df[df['rounds'] == 100]
     # data_y1 = df_std['mean'] - df_std['std']
@@ -114,16 +118,17 @@ def plot_rtp_lat_wpvtcnt(plot_dir: str, save: False):
     # ax.fill_between(data_x, data_y1, data_y2, facecolor='green', alpha=0.1)
 
     ax.set_ylim([0, 800000])
-    ax.set_xscale('log')
-    xticks = df['nranks'].unique()
-    ax.set_xticks(xticks)
+    # ax.set_xscale('log')
+    xticks = df['nranks'].unique().astype(str)
+    ax.set_xticks(range(len(xticks)))
+    ax.set_xticklabels(xticks)
     ax.minorticks_off()
-    ax.set_xticklabels([str(i) for i in xticks])
+    # ax.set_xticklabels([str(i) for i in xticks])
     ax.yaxis.set_major_formatter(lambda x, pos: '{:.0f}ms'.format(x / 1000))
 
     # ax.set_title(plot_title)
     ax.set_xlabel('Number of Ranks')
-    ax.set_ylabel('Renegotiation Latency')
+    ax.set_ylabel('Reneg. Latency')
 
     # ax.legend(loc='upper left', ncol=3)
     custom_lines = [
@@ -132,20 +137,25 @@ def plot_rtp_lat_wpvtcnt(plot_dir: str, save: False):
     ]
 
     if (hg_proto == "bmi+tcp"):
-        ax.legend(loc='upper left', fontsize=18, ncol=2, bbox_to_anchor=(-0.03, 1.06))
+        ax.legend(loc='upper left', fontsize=15, ncol=2, bbox_to_anchor=(-0.03, 1.15))
     else:
         ax.legend(handles=custom_lines, loc='upper left')
 
+    # ax.set_aspect(800 * 1e7)
+    ratio = 0.33
+    ax.set_aspect(1.0 / ax.get_data_ratio() * ratio)
     fig.tight_layout()
 
-    ax.yaxis.set_minor_locator(MultipleLocator(25000))
-    ax.yaxis.grid(b=True, which="major", color="#aaa")
-    ax.yaxis.grid(b=True, which="minor", color="#ddd")
+    ax.yaxis.set_major_locator(MultipleLocator(200000))
+    ax.yaxis.set_minor_locator(MultipleLocator(50000))
+    ax.yaxis.grid(visible=True, which="major", color="#aaa")
+    ax.yaxis.grid(visible=True, which="minor", color="#ddd")
 
     PlotSaver.save(fig, plot_dir, plot_fname)
 
 
 def run_plot_rtpbench(plot_dir):
+    plot_init_bigfont_singlecol()
     # plot_rtp_lat_orig(plot_dir, False)
     plot_rtp_lat_wpvtcnt(plot_dir, True)
     pass
@@ -160,5 +170,4 @@ if __name__ == "__main__":
     if not os.path.exists(plot_dir):
         os.mkdir(plot_dir)
 
-    plot_init()
     run_plot_rtpbench(plot_dir)

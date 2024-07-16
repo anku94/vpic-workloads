@@ -52,15 +52,24 @@ def set_3levelticks(ax):
     ax.set_yticklabels(labels)
 
 
-def set_simpleticks(ax):
+def set_simpleticks(fig, ax):
     lib_str = [r"$\it{(Lower}$ $\it{Is}$ $\it{Better})$"]
     ax.set_xlabel(
         r"{\fontsize{18}{20} \selectfont (\textit{Lower Is Beter})}"
         "\nQuery Latency")
     ax.set_ylabel('I/O Amplification\n'
                   r"{\fontsize{18}{20} \selectfont (\textit{Lower Is Beter})}")
+
     ax.set_xticklabels([])
     ax.set_yticklabels([])
+
+    fig.text(0.17, 0.15, "\emph{Low}", fontsize=18, horizontalalignment="left")
+    fig.text(0.95, 0.15, "\emph{High}", fontsize=18,
+             horizontalalignment="right")
+    fig.text(0.12, 0.23, "\emph{Low}", fontsize=18, horizontalalignment="left",
+             rotation="vertical")
+    fig.text(0.12, 0.85, "\emph{High}", fontsize=18,
+             horizontalalignment="left", rotation="vertical")
 
 
 def plot_tradeoff():
@@ -238,7 +247,8 @@ def plot_tradeoff_2():
     #             ha='center', va='center',
     #             )
 
-    ax.annotate("Slalom\n"r"\textit{(over time)}", xy=(0.65, 0.2), xycoords='data',
+    ax.annotate("Slalom\n"r"\textit{(over time)}", xy=(0.65, 0.2),
+                xycoords='data',
                 xytext=(0.75, 0.2), textcoords='data',
                 arrowprops=dict(facecolor='black', shrink=0.2),
                 ha='left', va='center',
@@ -264,7 +274,7 @@ def plot_tradeoff_2():
 
     # ------ Ticks -----
     # set_3levelticks(ax)
-    set_simpleticks(ax)
+    set_simpleticks(fig, ax)
 
     # ax.set_xlabel('Query Latency')
     # ax.set_ylabel('I/O Amplification')
@@ -275,12 +285,14 @@ def plot_tradeoff_2():
     # plt.subplots_adjust(top=0.8)
     ax.xaxis.set_major_locator(MultipleLocator(0.34))
     ax.yaxis.set_major_locator(MultipleLocator(0.34))
-    ax.xaxis.grid(b=True, which='major', color='#aaa')
-    ax.yaxis.grid(b=True, which='major', color='#aaa')
+    ax.xaxis.grid(visible=True, which='major', color='#aaa')
+    ax.yaxis.grid(visible=True, which='major', color='#aaa')
 
     fig.tight_layout()
 
-    PlotSaver.save(fig, "/Users/schwifty/Repos/workloads/rundata/20221127-roofline-ss1024-4gbps", "tradeoff_matrix_3")
+    PlotSaver.save(fig,
+                   "/Users/schwifty/Repos/workloads/rundata/20221127-roofline-ss1024-4gbps",
+                   "tradeoff_matrix_3")
 
 
 def run_plot():

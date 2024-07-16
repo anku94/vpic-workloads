@@ -2,7 +2,7 @@
 
 import matplotlib.pyplot as plt
 from matplotlib.container import ErrorbarContainer
-from matplotlib.patches import Rectangle
+from matplotlib.patches import Patch, Rectangle
 from matplotlib.ticker import MultipleLocator
 import glob
 import numpy as np
@@ -11,7 +11,7 @@ import pandas as pd
 import re
 import sys
 
-from common import plot_init_bigfont as plot_init
+from common import plot_init_bigfont, plot_init_bigfont_singlecol
 from common import PlotSaver
 
 
@@ -219,7 +219,10 @@ def plot_intvls(df_raw, plot_dir):
         num_writes = 6500000
         return num_writes / intvl
 
-    df = df_raw[df_raw["runtype"] == "carp-suite-intraepoch-skipsort"]
+    mask_a = df_raw["runtype"] == "carp-suite-intraepoch-skipsort"
+    mask_b = df_raw["nranks"] == 512
+    mask = mask_a & mask_b
+    df = df_raw[mask]
 
     df = df.astype({
         "intvl": int,
@@ -237,8 +240,9 @@ def plot_intvls(df_raw, plot_dir):
             'ylabel': 'Runtime (seconds)',
             'title': 'Pivot Count vs Runtime as f(intvl) - NoWrite',
             'majorfmt': lambda x, pos: '{:.0f}s'.format(x / 1e3),
+            'majorloc': MultipleLocator(20000),
             'minorloc': MultipleLocator(5000),
-            'ylim': 90 * 1e3,
+            'ylim': 85 * 1e3,
             'fname': 'runtime.vs.params'
         },
 
@@ -247,26 +251,29 @@ def plot_intvls(df_raw, plot_dir):
             'ylabel': 'Load Std-Dev (\%)',
             'title': 'Pivot Count vs Partition Load Std-Dev as f(intvl) - NoWrite',
             'majorfmt': lambda x, pos: '{:.0f}%'.format(x * 100),
+            'majorloc': MultipleLocator(0.1),
             'minorloc': MultipleLocator(0.05),
-            'ylim': 0.5,
+            'ylim': 0.55,
             'fname': 'load.vs.params'
         }
     }
 
-    plot_key = "load_std"
-    # plot_key = "runtime"
+    # plot_key = "load_std"
+    plot_key = "runtime"
     params = run_params[plot_key]
 
     def intvl_str_func(nep):
         if nep < 1:
             return f'1X/{int(1 / nep)} Epochs'
         else:
-            return f'{int(nep)}X Renegotiations/Epoch'
+            return f'{int(nep)}X Reneg./Epoch'
 
     fig, ax = plt.subplots(1, 1)
 
     for idx, intvl in enumerate(intvls):
-        plot_intvls_addpt(plot_key, df, intvl, ax, label=intvl_str_func(intvl_map(intvl)), color=colors[idx+1])
+        plot_intvls_addpt(plot_key, df, intvl, ax,
+                          label=intvl_str_func(intvl_map(intvl)),
+                          color=colors[idx + 1])
 
     xticks = list(range(len(pvtcnt)))
     ax.set_xticks(xticks)
@@ -276,12 +283,21 @@ def plot_intvls(df_raw, plot_dir):
     ax.set_ylabel(params['ylabel'])
 
     ax.yaxis.set_major_formatter(params['majorfmt'])
+    ax.yaxis.set_major_locator(params['majorloc'])
     ax.yaxis.set_minor_locator(params['minorloc'])
-    ax.yaxis.grid(b=True, which='major', color='#aaa')
-    ax.yaxis.grid(b=True, which='minor', color='#ddd')
+    ax.yaxis.grid(visible=True, which='major', color='#aaa')
+    ax.yaxis.grid(visible=True, which='minor', color='#ddd')
 
     ax.set_ylim([0, params['ylim']])
-    ax.legend()
+
+    ratio = 0.33
+    ax.set_aspect(1.0 / ax.get_data_ratio() * ratio)
+
+    if plot_key == "runtime":
+        ax.legend(ncol=2, fontsize=15, loc="upper left", bbox_to_anchor=(0.01, 0.65), framealpha=0.6)
+    else:
+        ax.legend(ncol=2, fontsize=15, loc="upper left", bbox_to_anchor=(0.01, 1.07), framealpha=0.6)
+
     fig.tight_layout()
 
     PlotSaver.save(fig, plot_dir, params["fname"])
@@ -467,6 +483,7 @@ def plot_roofline_internal_vldb(df, ax):
     colors = [c for c in prop_cycle.by_key()['color']]
 
     cm = plt.cm.get_cmap('Dark2')
+    cm = plt.cm.get_cmap('Set3')
     colors = list(cm.colors)
 
     all_labels = {
@@ -475,9 +492,9 @@ def plot_roofline_internal_vldb(df, ax):
         "carp-suite-intraepoch": "CARP - IntraEpoch",
         "carp-suite-intraepoch-skipsort": "CARP - IntraEpoch/NoSort",
         "carp-suite-intraepoch-nowrite": "CARP - IntraEpoch/NoWrite",
-        "carp-suite-interepoch": "CARP", # renamed from CARP-InterEpoch
+        "carp-suite-interepoch": "CARP",  # renamed from CARP-InterEpoch
         "carp-suite-interepoch-skipsort": "CARP - InterEpoch/NoSort",
-        "carp-suite-interepoch-nowrite": "CARP - InterEpoch/NoWrite",
+        "carp-suite-interepoch-nowrite": "CARP/ShuffleOnly", # renamed
         "dfs-ioonly": "Storage Bound - Line",
         "network-suite": "Network Bound - Line",
         "network-suite-psm": "Max Shuffle Xput (PSM)",
@@ -493,31 +510,38 @@ def plot_roofline_internal_vldb(df, ax):
     ]
 
     keys_to_plot = [
+        "carp-suite-interepoch-nowrite",
         "dfs-reg-suite",
-        "carp-suite-interepoch"
+        "carp-suite-interepoch",
+    ]
+
+    markers = [
+        'X',
+        's',
+        'o'
     ]
 
     for kidx, key in enumerate(keys_to_plot):
         print(f"Plotting datapoints: {key}")
         plot_roofline_util_addpt(ax, df, key,
-                                 all_labels[key], colors[kidx])
+                                 all_labels[key], colors, marker=markers[kidx])
 
 
 def plot_roofline_internal_addshadedreg(df, ax):
     cm = plt.cm.get_cmap('Pastel1')
     colors = list(cm.colors)
 
-    key = "dfs-ioonly"
-    _, df_a = filter_df_by_run(df, key)
-    ax.fill_between(df_a["x"].astype(str), df_a["y"], 0, color=colors[1],
-                    edgecolor="b",
-                    linewidth=0, alpha=0.6, label="Storage Bound")
-
     key = "network-suite"
     _, df_b = filter_df_by_run(df, key)
     ax.fill_between(df_b["x"].astype(str), df_b["y"], 0, color=colors[6],
-                    edgecolor="b",
-                    linewidth=0, alpha=0.6, label="Network Bound")
+                    edgecolor="#333",
+                    linewidth=0, alpha=0.6, label="Network Bound", hatch='\\')
+
+    key = "dfs-ioonly"
+    _, df_a = filter_df_by_run(df, key)
+    ax.fill_between(df_a["x"].astype(str), df_a["y"], 0, color=colors[1],
+                    edgecolor="#777",
+                    linewidth=0, alpha=0.6, label="Storage Bound", hatch='/')
 
     dy_min = np.minimum(df_a["y"].tolist(), df_b["y"].tolist())
     ax.fill_between(df_a["x"].astype(str), dy_min, 0, color='#bbb',
@@ -536,24 +560,36 @@ def filter_df_by_run(df, runtype):
 
 
 def plot_roofline_util_addpt(ax, df, key, label,
-                             linecolor):
+                             linecolor, marker='o'):
     df_bw, df_bw_aggr = filter_df_by_run(df, key)
 
     # ax.plot(df_bw['x'].astype(str), df_bw['y'], 'x', ms=6, color=linecolor)
     # ax.plot(df_bw_aggr['x'].astype(str), df_bw_aggr['y'], label=label,
     #         marker='o', linewidth=2, ms=6,
     #         color=linecolor)
-    ax.errorbar(df_bw_aggr['x'].astype(str), df_bw_aggr['y'],
-                yerr=df_bw_aggr['yerr'], label=label,
-                marker='o', linewidth=2, ms=6,
-                color=linecolor, capsize=4)
+
+    if label == "CARP":
+        ax.errorbar(df_bw_aggr['x'].astype(str), df_bw_aggr['y'],
+                    yerr=df_bw_aggr['yerr'], label=label,
+                    marker='o', linewidth=2, ms=10,
+                    color="#4E9B8F", capsize=4, mec='black', mew='1', mfc=linecolor[0])
+    elif label == "DeltaFS":
+        ax.errorbar(df_bw_aggr['x'].astype(str), df_bw_aggr['y'],
+                    yerr=df_bw_aggr['yerr'], label=label,
+                    marker='s', linewidth=2, ms=13,
+                    color="#C1443C", capsize=4, mec='black', mew='1', mfc=linecolor[3])
+    else:
+        ax.errorbar(df_bw_aggr['x'].astype(str), df_bw_aggr['y'],
+                    yerr=df_bw_aggr['yerr'], label=label,
+                    marker=marker, linewidth=2, ms=13,
+                    color="#4F7697", capsize=4, mec='black', mew='1', mfc=linecolor[4])
 
 
 def plot_tritonsort(df, ax):
     prop_cycle = plt.rcParams['axes.prop_cycle']
     colors = [c for c in prop_cycle.by_key()['color']]
 
-    cm = plt.cm.get_cmap('Dark2')
+    cm = plt.cm.get_cmap('Set3')
     colors = list(cm.colors)
 
     ts_sort_per200 = 3360 / 12.0
@@ -572,19 +608,55 @@ def plot_tritonsort(df, ax):
     bw_ts_mbps = data_mb / time_total
     _, df = filter_df_by_run(df, "dfs-ioonly")
     data_x = df["x"]
-    ax.plot(data_x.astype(str), [bw_ts_mbps] * len(data_x), '-o',
-            label='TritonSort', color=colors[6])
+    ax.plot(data_x.astype(str), [bw_ts_mbps] * len(data_x), '-D',
+            label='TritonSort', color="#C97F3C", ms=11, mec='black', mfc=colors[5])
+    print(f'[TritonSort] {bw_ts_mbps} MB/s')
+    pass
+
+
+def plot_fq(df, ax):
+    prop_cycle = plt.rcParams['axes.prop_cycle']
+    colors = [c for c in prop_cycle.by_key()['color']]
+
+    cm = plt.cm.get_cmap('Set3')
+    colors = list(cm.colors)
+
+    # fq, 320 ranks, time = 121s, 128s, 124s
+    times_fq = [121, 128, 124]
+    time_fq_mean = np.mean(times_fq)
+    time_fq_std = np.std(times_fq)
+
+    print(time_fq_mean)  # ---- time needed for one epoch
+
+    time_ioonly = df[(df['runtype'] == 'dfs-ioonly') & (df['nranks'] == 512)][
+        'total_io_time'].mean().tolist()
+    time_ioonly /= 1000
+    # time_ioonly = time_ioonly[4:]
+    print(time_ioonly)
+
+    size_ep_g = (6.55 * 1e6 * 60 * 512) / (2 ** 30)
+    data_mb = size_ep_g * (2 ** 10)
+    time_total = time_ioonly + time_fq_mean
+
+    bw_ts_mbps = data_mb / time_total
+    _, df = filter_df_by_run(df, "dfs-ioonly")
+    data_x = df["x"]
+    ax.plot(data_x.astype(str), [bw_ts_mbps] * len(data_x), '-^',
+            label='FastQuery', color="#7D7999", ms=12, mec='black', mfc=colors[2])
+    print(f'[FastQuery] {bw_ts_mbps} MB/s')
     pass
 
 
 def plot_roofline(plot_dir, df):
-    fig, ax = plt.subplots(1, 1)
+    figsize=[9, 5]
+    fig, ax = plt.subplots(1, 1, figsize=figsize)
 
     file_name_noext = "runtime.v4.werr"
 
     plot_roofline_internal_addshadedreg(df, ax)
     plot_roofline_internal_vldb(df, ax)
     plot_tritonsort(df, ax)
+    plot_fq(df, ax)
 
     handles, labels = ax.get_legend_handles_labels()
     new_handles = []
@@ -595,11 +667,11 @@ def plot_roofline(plot_dir, df):
         else:
             new_handles.append(h)
 
-    handle_order = [2, 1, 0, 3, 4]
+    handle_order = [0, 1, 3, 2, 4, 5, 6]
     new_handles = [new_handles[i] for i in handle_order]
     labels = [labels[i] for i in handle_order]
 
-    leg = ax.legend(new_handles, labels, ncol=1, fontsize=18, framealpha=0.5,
+    leg = ax.legend(new_handles, labels, ncol=1, fontsize=17, framealpha=0.5,
                     loc="upper left",
                     bbox_to_anchor=(-0.02, 1.03))
 
@@ -619,8 +691,8 @@ def plot_roofline(plot_dir, df):
     # ax.set_ylim([0, ax.get_ylim()[1]])
     ax.set_ylim([0, 4096])
     ax.set_ylim([0, 1024 * 7])
-    ax.yaxis.grid(b=True, which='major', color='#aaa')
-    ax.yaxis.grid(b=True, which='minor', color='#ddd')
+    ax.yaxis.grid(visible=True, which='major', color='#aaa')
+    ax.yaxis.grid(visible=True, which='minor', color='#ddd')
     # ax.set_title('Scaling Ranks (CARP vs Others)')
     # ax.legend()
 
@@ -721,6 +793,7 @@ def aggr_data_sources():
 
 def run_plot_roofline():
     plot_dir = "/Users/schwifty/Repos/workloads/rundata/20221128-roofline-ss1024-4gbps"
+    plot_init_bigfont()
     df_plot = aggr_data_sources()
     df_ss = filter_strongscale(df_plot)
     plot_roofline(plot_dir, df_ss)
@@ -728,6 +801,7 @@ def run_plot_roofline():
 
 def run_plot_intvls():
     plot_dir = "/Users/schwifty/Repos/workloads/rundata/20221127-roofline-ss1024-4gbps"
+    plot_init_bigfont_singlecol()
     df_plot = aggr_data_sources()
     df_carp = filter_carp_params(df_plot).copy()
     print(df_carp)
@@ -738,6 +812,5 @@ if __name__ == "__main__":
     # if not os.path.exists(plot_dir):
     #     os.mkdir(plot_dir)
 
-    plot_init()
     run_plot_roofline()
     # run_plot_intvls()

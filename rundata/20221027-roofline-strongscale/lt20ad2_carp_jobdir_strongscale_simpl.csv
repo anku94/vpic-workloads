@@ -1,0 +1,5 @@
+,runtype,nranks,epcnt,intvl,pvtcnt,run,total_io_time,load_std
+0,carp-suite-intraepoch,16,12,750000,2048,4,216,0.085
+1,carp-suite-intraepoch,16,12,1000000,2048,4,208,0.03
+3,carp-suite-intraepoch-nowrite,16,12,750000,2048,3,212,0.05
+2,carp-suite-intraepoch-nowrite,16,12,1000000,2048,3,213,0.102
