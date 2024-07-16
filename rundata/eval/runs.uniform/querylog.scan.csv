@@ -1,0 +1,9 @@
+plfspath,epoch,qbegin,qend,qselectivity,qkeyselectivity,qreadus,qsortus
+/mnt/ltio/jobs-qlat/vpic-carp8m/carp_P3584M_intvl250000/plfs/particle,0,0.000000,0.001000,1.000000,1.000000,338316431,20617
+/mnt/ltio/jobs-qlat/vpic-carp8m/carp_P3584M_intvl250000/plfs/particle,0,1.205000,1.306000,1.000000,1.000000,337167687,454072
+/mnt/ltio/jobs-qlat/vpic-carp8m/carp_P3584M_intvl250000/plfs/particle,0,1.807001,2.008001,1.000000,1.000000,334084002,155961
+/mnt/ltio/jobs-qlat/vpic-carp8m/carp_P3584M_intvl250000/plfs/particle,0,2.208000,2.409000,1.000000,1.000000,336311914,79468
+/mnt/ltio/jobs-qlat/vpic-carp8m/carp_P3584M_intvl250000/plfs/particle,1,2.907000,3.407999,1.000000,1.000000,338046189,312985
+/mnt/ltio/jobs-qlat/vpic-carp8m/carp_P3584M_intvl250000/plfs/particle,2,4.305998,11.707009,1.000000,1.000000,340517761,527624
+/mnt/ltio/jobs-qlat/vpic-carp8m/carp_P3584M_intvl250000/plfs/particle,3,1.905001,6.505997,1.000000,1.000000,338079124,662378
+/mnt/ltio/jobs-qlat/vpic-carp8m/carp_P3584M_intvl250000/plfs/particle,3,16.407026,25.408060,1.000000,1.000000,337196079,905313
