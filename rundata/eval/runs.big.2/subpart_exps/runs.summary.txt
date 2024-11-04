@@ -1,0 +1,47 @@
+only 250k runs
+
+1-3: with 4x subpartitioning
+4-6: with 1x subpartitioning
+7-9: with only one bucket (no repart)
+10-12: only one bucket + sort disabled
+
+13-15: like (0-2) but with 400s sleep interval
+13-15 v1 runtime:
+1699
+1762
+1839
+
+13-15 overwritten. big overnight break so SSDs should be compacted by now. 
+
+run.13 v2: 1699 -> 1771
+
+run.13 v3: 1771 -> 1508 (different, fresher cluster)
+
+run.14 v2: (subpart disabled; sort disabled)
+
+also 1507 (!? - did it slow down a bit?)
+
+run.15 v2: (subpart/sort enabled; 2000s sleep, same cluster as run.13v3 and run.14v2)
+
+1497s
+
+
+theory: time increases because of SSDs starting to compact in the background
+
+------------
+
+deltafs
+
+- run1: 18:24 (1104 seconds), 2132288962325 bytes written (2561 files)
+- run2: 21:04 (1264 seconds), 2476922390602 bytes written (2561 files)
+- run3: 20:02 (1202 seconds), 2476922390602 bytes written (2561 files)
+
+deltafs-noshuf
+- run1: 20:35 (1235 seconds), 2476922390602 bytes written (2561 files)
+- run2: 20:28 (1235 seconds), 2476922390602 bytes written (2561 files)
+
+-----------
+
+13-15 rerun:
+
+250k, 4x subpart + reseparation, fresh cluster

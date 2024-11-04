@@ -1,0 +1,17 @@
+3 runs
+
+358M particles, 512 ranks, 4B/40B KVs (CARP transformed to 4/56)
+
+runtimes: 
+
+1604
+1518
+1576
+
+data:
+
+-INFO-    > 2580527832428 bytes written (512 files), 0 bytes read (0 files)
+-INFO-    > 2580527938612 bytes written (512 files), 0 bytes read (0 files)
+-INFO-    > 2580527307920 bytes written (512 files), 0 bytes read (0 files)
+
+200GB/epoch, 2400GB total
