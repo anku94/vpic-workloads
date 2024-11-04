@@ -59,7 +59,7 @@ def plot_init_bigfont_singlecol():
 class PlotSaver:
     @staticmethod
     def save(fig: pltfig.Figure, fpath: str, fname: str):
-        PlotSaver._save_to_fpath(fig, fpath, fname, ext="pdf", show=False)
+        PlotSaver._save_to_fpath(fig, fpath, fname, ext="png", show=False)
         # PlotSaver._save_to_paper(fig, "eval", fname)
         # PlotSaver._save_to_project(fig, fname)
         # PlotSaver._save_unrolled(fig, fpath, fname)

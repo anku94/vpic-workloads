@@ -187,10 +187,10 @@ def read_query_carpdb(fpath):
 
 
 def read_query_csvs(fpath: str):
-    basedir = '/Users/schwifty/Repos/workloads/rundata/eval.re'
+    basedir = '/Users/schwifty/Repos/vpic-workloads/rundata/eval.re'
     csv_path = basedir + '/querylog.csv'
 
-    fq_path = '/Users/schwifty/CMU/18911/CARP/20220328/queries.fastquery.aggr.csv'
+    fq_path = f'{basedir}/20220328.queries.fastquery.aggr.csv'
     df_fq = pd.read_csv(fq_path)
 
     data = pd.read_csv(csv_path)
@@ -246,7 +246,7 @@ def read_query_csvs(fpath: str):
         df.reset_index(drop=True, inplace=True)
         df.drop([df.index[x] for x in drop_idx], inplace=True)
 
-    scan_fpath = '/Users/schwifty/Repos/workloads/rundata/eval/runs.uniform/querylog.scan.csv'
+    scan_fpath = '/Users/schwifty/Repos/vpic-workloads/rundata/eval/runs.uniform/querylog.scan.csv'
     df_scan = pd.read_csv(scan_fpath)
     df_scan['qreadus'] += df_scan['qsortus']
     df_scan = df_scan[['qbegin', 'qend', 'qkeyselectivity', 'qreadus']]
@@ -266,7 +266,7 @@ def read_query_csvs(fpath: str):
 
 
 def plot_query_latvssel_unified():
-    basedir = '/Users/schwifty/Repos/workloads/rundata/eval.re'
+    basedir = '/Users/schwifty/Repos/vpic-workloads/rundata/eval.re'
     csv_path = basedir + '/querylog.csv'
     csv_scan = basedir + '/querylog.scan.csv'
 
@@ -276,7 +276,7 @@ def plot_query_latvssel_unified():
     q = df_fq['timemean']
     print(max(q / p), min(q / p))
 
-    fig, ax = plt.subplots(1, 1, figsize=[9, 5])
+    fig, ax = plt.subplots(1, 1, figsize=[7, 6])
     cm = plt.cm.get_cmap('Set2')
     cm = plt.cm.get_cmap('Set3')
 
@@ -340,7 +340,7 @@ def plot_query_latvssel_unified():
                    markersize=12))
 
     ax.legend(handles=legend_items, fontsize=18, loc="lower left",
-              bbox_to_anchor=(0.61, -0.03), ncol=1)
+              bbox_to_anchor=(0.08, 0.02), ncol=2)
 
     ax.set_yscale('log')
     yticks = [0.04, 0.2, 1, 5, 25, 125]
@@ -386,8 +386,10 @@ def plot_query_latvssel_unified():
     ax.yaxis.grid(True, color='#ddd', which='minor')
 
     fig.tight_layout()
-    fname = "qlatvssel.v6"
-    PlotSaver.save(fig, "wherever", fname)
+
+    plot_dir = "/Users/schwifty/CMU/18911/Documents/20240716_ASCR_CARP"
+    fname = "qlatvssel.v6.mini"
+    PlotSaver.save(fig, plot_dir, fname)
 
 
 def plot_query_ycsb() -> None:
@@ -475,8 +477,8 @@ def plot_query_ycsb() -> None:
 
 
 def plot_subpart_perf_abs(dir: str, save: bool = False) -> None:
-    basedir = '/Users/schwifty/Repos/workloads/rundata/eval/big.2'
-    basedir = '/Users/schwifty/Repos/workloads/rundata/eval/runs.uniform'
+    basedir = '/Users/schwifty/Repos/vpic-workloads/rundata/eval/big.2'
+    basedir = '/Users/schwifty/Repos/vpic-workloads/rundata/eval/runs.uniform'
     csv50 = basedir + '/subpart_exps/olaps.50.csv'
     csv99 = basedir + '/subpart_exps/olaps.99.csv'
 
@@ -818,8 +820,8 @@ def plot_intvl_runtime_2(dir: str, save: bool = False) -> None:
 
 def run(eval_dir):
     # plot_runtime_alt_2(eval_dir, False)
-    # plot_query_latvssel_unified()
-    plot_query_ycsb()
+    plot_query_latvssel_unified()
+    # plot_query_ycsb()
     # plot_subpart_perf_abs(eval_dir, True)
     # plot_intvl_runtime_2(eval_dir, True)
     # plot_rtp_lat(eval_dir, True)
