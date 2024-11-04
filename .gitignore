@@ -1,6 +1,5 @@
 *.pyc
 *.swp
-rundata
 vis
 .idea
 .DS_Store
